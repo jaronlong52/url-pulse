@@ -1,13 +1,64 @@
 ﻿@page
 @model IndexModel
+@{
+    ViewData["Title"] = "URL Pulse Dashboard";
+}
 
-<h1>Simple Form</h1>
-
-<form method="post">
-    <div>
-        <label asp-for="InputValue"></label>
-        <input asp-for="InputValue" />
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-primary">URL Pulse</h1>
+        <span class="badge bg-success">System Active</span>
     </div>
 
-    <button type="submit">Submit</button>
-</form>
+    <div class="card shadow-sm mb-5">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Add New Monitor</h5>
+            <form method="post" class="row g-3">
+                <div class="col-md-9">
+                    <div class="input-group">
+                        <span class="input-group-text" id="basic-addon1">https://</span>
+                        <input asp-for="InputValue" type="url" class="form-control" placeholder="example.com"
+                            aria-label="URL" required>
+                    </div>
+                    <span asp-validation-for="InputValue" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3 d-grid">
+                    <button type="submit" class="btn btn-primary">Add Target</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Active Monitors</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Status</th>
+                            <th>URL</th>
+                            <th>Last Check</th>
+                            <th>Latency</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @* This loop will eventually render your real data *@
+                        <tr>
+                            <td><span class="badge rounded-pill bg-success">Up</span></td>
+                            <td class="font-monospace">google.com</td>
+                            <td>Just now</td>
+                            <td>42ms</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-danger">Delete</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
