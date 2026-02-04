@@ -15,12 +15,10 @@
             <h5 class="card-title mb-3">Add New Monitor</h5>
             <form method="post" class="row g-3">
                 <div class="col-md-9">
-                    <div class="input-group">
-                        <span class="input-group-text" id="basic-addon1">https://</span>
-                        <input asp-for="InputValue" type="url" class="form-control" placeholder="example.com"
-                            aria-label="URL" required>
-                    </div>
-                    <span asp-validation-for="InputValue" class="text-danger small"></span>
+                    <input asp-for="InputValue" type="url"
+                        class="form-control @(ViewData.ModelState.IsValid ? "" : "is-invalid")"
+                        placeholder="https://example.com" aria-label="URL" required>
+                    <span asp-validation-for="InputValue" class="invalid-feedback"></span>
                 </div>
                 <div class="col-md-3 d-grid">
                     <button type="submit" class="btn btn-primary">Add Target</button>

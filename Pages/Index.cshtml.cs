@@ -7,7 +7,6 @@ namespace UrlPulse.Pages;
 public class IndexModel : PageModel
 {
     [BindProperty]
-    [Required(ErrorMessage = "Please enter a valid URL")]
     [Url(ErrorMessage = "Invalid URL format")]
     public string InputValue { get; set; }
 
@@ -24,6 +23,7 @@ public class IndexModel : PageModel
         }
 
         // TODO: Logic to save the URL to the database
+        Console.WriteLine($"New URL submitted: {InputValue}");
 
         return RedirectToPage(); // Refresh page to see new entry
     }
