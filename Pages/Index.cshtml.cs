@@ -1,29 +1,58 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using UrlPulse.Data;
+using UrlPulse.Models;
 
 namespace UrlPulse.Pages;
 
 public class IndexModel : PageModel
 {
-    [BindProperty]
-    [Url(ErrorMessage = "Invalid URL format")]
-    public string InputValue { get; set; }
+    private readonly ApplicationDbContext _context;
 
-    public void OnGet()
+    // Constructor creates the DbContext instance via dependency injection
+    public IndexModel(ApplicationDbContext context)
     {
-        // This is where you will eventually load the list of URLs from the database
+        _context = context;
     }
 
-    public IActionResult OnPost()
+    [BindProperty]
+    [Url(ErrorMessage = "Invalid URL format")]
+    public string InputValue { get; set; } = string.Empty; // Initialized to empty because string type is non-nullable
+
+    public List<UrlMonitor> UrlMonitors { get; set; } = new(); // Holds data loaded from the database
+
+    public async Task OnGetAsync()
+    {
+        // Load all URLs from the database, newest first
+        UrlMonitors = await _context.UrlMonitors
+            .OrderByDescending(u => u.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)
         {
+            // Reload the list so it displays even when validation fails
+            UrlMonitors = await _context.UrlMonitors
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
             return Page();
         }
 
-        // TODO: Logic to save the URL to the database
-        Console.WriteLine($"New URL submitted: {InputValue}");
+        // Create new URL monitor
+        var urlMonitor = new UrlMonitor
+        {
+            Url = InputValue,
+            CreatedAt = DateTime.UtcNow,
+            IsUp = true
+        };
+
+        // Add to database and save
+        _context.UrlMonitors.Add(urlMonitor);
+        await _context.SaveChangesAsync();
 
         return RedirectToPage(); // Refresh page to see new entry
     }

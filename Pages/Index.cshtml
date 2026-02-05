@@ -44,16 +44,33 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @* This loop will eventually render your real data *@
-                        <tr>
-                            <td><span class="badge rounded-pill bg-success">Up</span></td>
-                            <td class="font-monospace">google.com</td>
-                            <td>Just now</td>
-                            <td>42ms</td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-danger">Delete</button>
-                            </td>
-                        </tr>
+                        @if (Model.UrlMonitors.Any())
+                        {
+                            @foreach (var monitor in Model.UrlMonitors)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="badge rounded-pill bg-@(monitor.IsUp ? "success" : "danger")">
+                                            @(monitor.IsUp ? "Up" : "Down")
+                                        </span>
+                                    </td>
+                                    <td class="font-monospace">@monitor.Url</td>
+                                    <td>@(monitor.LastChecked?.ToString("g") ?? "Never")</td>
+                                    <td>@(monitor.LatencyMs?.ToString() ?? "-")ms</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No monitors yet. Add one above to get started!
+                                </td>
+                            </tr>
+                        }
                     </tbody>
                 </table>
             </div>
