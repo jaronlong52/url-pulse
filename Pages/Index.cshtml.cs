@@ -50,10 +50,26 @@ public class IndexModel : PageModel
             IsUp = true
         };
 
-        // Add to database and save
+        // Adds the new entity to EF Core's change tracker
         _context.UrlMonitors.Add(urlMonitor);
+        // Persists the new entity to the database
         await _context.SaveChangesAsync();
 
         return RedirectToPage(); // Refresh page to see new entry
+    }
+
+    public async Task<IActionResult> OnPostDeleteAsync(int id)
+    {
+        var urlMonitor = await _context.UrlMonitors.FindAsync(id);
+
+        if (urlMonitor != null)
+        {
+            // Marks the entity for deletion in EF Core's change tracker
+            _context.UrlMonitors.Remove(urlMonitor);
+            // Executes the deletion in the database
+            await _context.SaveChangesAsync();
+        }
+
+        return RedirectToPage();
     }
 }

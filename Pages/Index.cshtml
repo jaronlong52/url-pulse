@@ -58,7 +58,12 @@
                                     <td>@(monitor.LastChecked?.ToString("g") ?? "Never")</td>
                                     <td>@(monitor.LatencyMs?.ToString() ?? "-")ms</td>
                                     <td class="text-end">
-                                        <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                        <form method="post" asp-page-handler="Delete" style="display: inline;">
+                                            <input type="hidden" name="id" value="@monitor.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                Delete
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             }
