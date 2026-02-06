@@ -4,17 +4,20 @@ using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using UrlPulse.Data;
 using UrlPulse.Models;
+using UrlPulse.Services;
 
 namespace UrlPulse.Pages;
 
 public class IndexModel : PageModel
 {
     private readonly ApplicationDbContext _context;
+    private readonly IUrlChecker _urlChecker;
 
     // Constructor creates the DbContext instance via dependency injection
-    public IndexModel(ApplicationDbContext context)
+    public IndexModel(ApplicationDbContext context, IUrlChecker urlChecker)
     {
         _context = context;
+        _urlChecker = urlChecker;
     }
 
     [BindProperty]
@@ -29,6 +32,24 @@ public class IndexModel : PageModel
         UrlMonitors = await _context.UrlMonitors
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
+
+        var now = DateTime.UtcNow;
+        var staleThreshold = TimeSpan.FromSeconds(60);
+
+        foreach (var monitor in UrlMonitors)
+        {
+            if (monitor.LastChecked == null ||
+                now - monitor.LastChecked > staleThreshold)
+            {
+                var result = await _urlChecker.CheckUrlAsync(monitor.Url);
+
+                monitor.LastChecked = result.CheckedAt;
+                monitor.IsUp = result.IsUp;
+                monitor.LatencyMs = result.LatencyMs;
+            }
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -42,12 +63,16 @@ public class IndexModel : PageModel
             return Page();
         }
 
+        var result = await _urlChecker.CheckUrlAsync(InputValue);
+
         // Create new URL monitor
         var urlMonitor = new UrlMonitor
         {
             Url = InputValue,
-            CreatedAt = DateTime.UtcNow,
-            IsUp = true
+            CreatedAt = result.CheckedAt,
+            LastChecked = result.CheckedAt,
+            LatencyMs = result.LatencyMs,
+            IsUp = result.IsUp
         };
 
         // Adds the new entity to EF Core's change tracker

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using UrlPulse.Data;
+using UrlPulse.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,12 @@ builder.Services.AddRazorPages();
 // Add DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add HttpClient for making HTTP requests
+builder.Services.AddHttpClient();
+
+// Add custom services
+builder.Services.AddHttpClient<IUrlChecker, UrlChecker>();
 
 var app = builder.Build();
 
