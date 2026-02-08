@@ -1,0 +1,178 @@
+# ============================================================================
+# .NET BUILD ARTIFACTS
+# ============================================================================
+# These are generated during compilation - we don't need them because
+# we're compiling INSIDE the Docker container
+
+# bin/ folder: Contains compiled DLLs and executables
+# obj/ folder: Contains intermediate build files
+# When you run 'dotnet build', these are created
+# Docker will create its own during the build stage, so exclude these
+bin/
+obj/
+
+# out/ folder: Output from 'dotnet publish'
+out/
+
+# ============================================================================
+# USER-SPECIFIC FILES
+# ============================================================================
+# These files are specific to YOUR machine and IDE
+# They shouldn't be in source control OR Docker images
+
+# Visual Studio user settings (your preferences, window layouts, etc.)
+*.user
+*.userosscache
+*.suo
+
+# Visual Studio folder (caches, temp files, debugging info)
+.vs/
+
+# Visual Studio Code settings (might contain local paths)
+.vscode/
+
+# JetBrider Rider IDE files
+.idea/
+
+# ============================================================================
+# .NET PROJECT FILES
+# ============================================================================
+# These are lock files used by .NET's package management
+# They can be regenerated, and might cause conflicts between Windows/Linux
+
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ============================================================================
+# DOCKER FILES
+# ============================================================================
+# Don't copy Docker-related files into the image
+# (Avoid inception: "Docker in Docker" scenarios)
+
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
+
+# Docker override files (used for local development variations)
+docker-compose.override.yml
+
+# ============================================================================
+# VERSION CONTROL
+# ============================================================================
+# Git repository data - this can be huge and is never needed in production
+
+.git/
+.gitignore
+.gitattributes
+
+# Git submodules
+.gitmodules
+
+# ============================================================================
+# EDITOR ARTIFACTS
+# ============================================================================
+# Temporary files created by text editors
+
+# Vim swap files
+*.swp
+*.swo
+*~
+
+# Emacs backup files
+*~
+\#*\#
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# DOCUMENTATION & README FILES
+# ============================================================================
+# These are for humans reading the repo, not needed in production
+
+*.md
+README*
+LICENSE*
+CHANGELOG*
+
+# ============================================================================
+# LOGS AND DATABASES (Local Development)
+# ============================================================================
+# Don't copy local development artifacts into production image
+
+# Log files
+*.log
+logs/
+
+# Local SQLite databases (if you used SQLite for local testing)
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================================================
+# ENVIRONMENT & SECRETS
+# ============================================================================
+# CRITICAL: Never copy secrets into Docker images!
+
+# Environment variable files (might contain API keys, passwords)
+.env
+.env.*
+*.env
+
+# User secrets (ASP.NET Core user secrets)
+secrets.json
+
+# Certificate files
+*.pfx
+*.p12
+*.key
+*.pem
+
+# ============================================================================
+# NODE.JS (if you have any frontend build tools)
+# ============================================================================
+# If you use npm/webpack for frontend assets
+
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# ============================================================================
+# OPERATING SYSTEM FILES
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+# ============================================================================
+# TEST COVERAGE & REPORTS
+# ============================================================================
+
+TestResults/
+*.trx
+coverage/
+*.coverage
+*.coveragexml
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+
+*.tmp
+*.temp
+tmp/
+temp/
