@@ -55,10 +55,27 @@
                                         </span>
                                     </td>
                                     <td class="font-monospace">@monitor.Url</td>
-                                    <td>@(monitor.LastChecked?.ToString("g") ?? "Never")</td>
-                                    <td>@(monitor.LatencyMs?.ToString() ?? "-")ms</td>
+                                    <td>
+                                        @if (monitor.LastChecked.HasValue)
+                                        {
+                                            <time class="utc-time" datetime="@monitor.LastChecked.Value.ToString("o")">
+                                                @monitor.LastChecked.Value.ToString("u")
+                                            </time>
+                                        }
+                                        else
+                                        {
+                                            <span>Never</span>
+                                        }
+                                    </td>
+
+                                    <td>@(monitor.LatencyMs?.ToString() ?? "-") ms</td>
                                     <td class="text-end">
-                                        <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                        <form method="post" asp-page-handler="Delete" style="display: inline;">
+                                            <input type="hidden" name="id" value="@monitor.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                Delete
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             }
