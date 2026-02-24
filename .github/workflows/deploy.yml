@@ -1,4 +1,4 @@
-name: Build and Deploy UrlPulse Container App
+name: Build and Deploy UrlPulse Container App on Azure
 
 on:
   push:
