@@ -9,23 +9,25 @@ public class UrlChecker : IUrlChecker
   public UrlChecker(HttpClient httpClient)
   {
     _httpClient = httpClient;
-    _httpClient.Timeout = TimeSpan.FromSeconds(10);
   }
 
-  public async Task<UrlCheckResult> CheckUrlAsync(string url)
+  public async Task<UrlCheckResult> CheckUrlAsync(string url, int timeoutMs = 10000)
   {
     var checkedAt = DateTime.UtcNow;
+
+    using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(timeoutMs));
 
     try
     {
       var stopwatch = Stopwatch.StartNew();
-      using var response = await _httpClient.GetAsync(url);
+      using var response = await _httpClient.GetAsync(url, cts.Token);
       stopwatch.Stop();
 
       return new UrlCheckResult(
           response.IsSuccessStatusCode,
           (int)stopwatch.ElapsedMilliseconds,
-          checkedAt
+          checkedAt,
+          (int)response.StatusCode
       );
     }
     catch
@@ -33,7 +35,8 @@ public class UrlChecker : IUrlChecker
       return new UrlCheckResult(
           false,
           null,
-          checkedAt
+          checkedAt,
+          0
       );
     }
   }

@@ -48,35 +48,20 @@
                         {
                             @foreach (var monitor in Model.UrlMonitors)
                             {
+                                var latest = monitor.History.OrderByDescending(h => h.CheckedAt).FirstOrDefault();
+                                var isUp = latest != null && latest.StatusCode >= 200 && latest.StatusCode < 300;
+
                                 <tr>
                                     <td>
-                                        <span class="badge rounded-pill bg-@(monitor.IsUp ? "success" : "danger")">
-                                            @(monitor.IsUp ? "Up" : "Down")
+                                        <span class="badge rounded-pill bg-@(isUp ? "success" : "danger")">
+                                            @(isUp ? "Up" : "Down")
                                         </span>
                                     </td>
                                     <td class="font-monospace">@monitor.Url</td>
                                     <td>
-                                        @if (monitor.LastChecked.HasValue)
-                                        {
-                                            <time class="utc-time" datetime="@monitor.LastChecked.Value.ToString("o")">
-                                                @monitor.LastChecked.Value.ToString("u")
-                                            </time>
-                                        }
-                                        else
-                                        {
-                                            <span>Never</span>
-                                        }
+                                        @(latest?.CheckedAt.ToString("u") ?? "Never")
                                     </td>
-
-                                    <td>@(monitor.LatencyMs?.ToString() ?? "-") ms</td>
-                                    <td class="text-end">
-                                        <form method="post" asp-page-handler="Delete" style="display: inline;">
-                                            <input type="hidden" name="id" value="@monitor.Id" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                Delete
-                                            </button>
-                                        </form>
-                                    </td>
+                                    <td>@(latest?.LatencyMs.ToString() ?? "-") ms</td>
                                 </tr>
                             }
                         }

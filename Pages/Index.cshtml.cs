@@ -28,59 +28,91 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        // Load all URLs from the database, newest first
+        // Load monitors and include the latest history entry to check for staleness
         UrlMonitors = await _context.UrlMonitors
+            .Include(m => m.History.OrderByDescending(h => h.CheckedAt).Take(1))
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
 
         var now = DateTime.UtcNow;
-        var staleThreshold = TimeSpan.FromSeconds(60);
+        var tasks = new List<Task>();
 
         foreach (var monitor in UrlMonitors)
         {
-            if (monitor.LastChecked == null ||
-                now - monitor.LastChecked > staleThreshold)
-            {
-                var result = await _urlChecker.CheckUrlAsync(monitor.Url);
+            var lastCheck = monitor.History.FirstOrDefault();
 
-                monitor.LastChecked = result.CheckedAt;
-                monitor.IsUp = result.IsUp;
-                monitor.LatencyMs = result.LatencyMs;
+            // Check if it's time for a new pulse
+            if (lastCheck == null || (now - lastCheck.CheckedAt).TotalSeconds > monitor.CheckIntervalSeconds)
+            {
+                // We launch the tasks in parallel
+                tasks.Add(PerformUrlCheck(monitor));
             }
         }
 
-        await _context.SaveChangesAsync();
+        if (tasks.Any())
+        {
+            await Task.WhenAll(tasks);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    private async Task PerformUrlCheck(UrlMonitor monitor)
+    {
+        var result = await _urlChecker.CheckUrlAsync(monitor.Url, monitor.TimeoutMs);
+
+        var history = new LatencyHistory
+        {
+            UrlMonitorId = monitor.Id,
+            CheckedAt = result.CheckedAt,
+            LatencyMs = result.LatencyMs ?? 0,
+            StatusCode = result.StatusCode,
+            ErrorMessage = result.IsUp ? string.Empty : "Service Unavailable"
+        };
+
+        // Add to the context; EF handles the foreign key via the list or ID
+        _context.LatencyHistories.Add(history);
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)
         {
-            // Reload the list so it displays even when validation fails
+            // Reload list for the UI if validation fails
             UrlMonitors = await _context.UrlMonitors
+                .Include(m => m.History.OrderByDescending(h => h.CheckedAt).Take(1))
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
             return Page();
         }
+        // TODO - Add the necessary inputs to the frontend so user can input timout and check intervals
 
-        var result = await _urlChecker.CheckUrlAsync(InputValue);
+        // 1. Perform the initial check immediately
+        var result = await _urlChecker.CheckUrlAsync(InputValue, 5000);
 
-        // Create new URL monitor
+        // 2. Create the Monitor with its first History record
         var urlMonitor = new UrlMonitor
         {
             Url = InputValue,
-            CreatedAt = result.CheckedAt,
-            LastChecked = result.CheckedAt,
-            LatencyMs = result.LatencyMs,
-            IsUp = result.IsUp
+            CreatedAt = DateTime.UtcNow,
+            CheckIntervalSeconds = 60, // Default values from your model
+            TimeoutMs = 5000,
+            IsActive = true,
+            History = new List<LatencyHistory>
+        {
+            new LatencyHistory
+            {
+                CheckedAt = result.CheckedAt,
+                LatencyMs = result.LatencyMs ?? 0,
+                StatusCode = result.StatusCode,
+                ErrorMessage = result.IsUp ? string.Empty : "Initial check failed"
+            }
+        }
         };
 
-        // Adds the new entity to EF Core's change tracker
         _context.UrlMonitors.Add(urlMonitor);
-        // Persists the new entity to the database
         await _context.SaveChangesAsync();
 
-        return RedirectToPage(); // Refresh page to see new entry
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(int id)
@@ -89,9 +121,7 @@ public class IndexModel : PageModel
 
         if (urlMonitor != null)
         {
-            // Marks the entity for deletion in EF Core's change tracker
             _context.UrlMonitors.Remove(urlMonitor);
-            // Executes the deletion in the database
             await _context.SaveChangesAsync();
         }
 
