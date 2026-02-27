@@ -22,65 +22,66 @@ public class IndexModel : PageModel
 
     [BindProperty]
     [Url(ErrorMessage = "Invalid URL format")]
-    public string InputValue { get; set; } = string.Empty; // Initialized to empty because string type is non-nullable
+    public string InputUrl { get; set; } = string.Empty;
+
+    [BindProperty]
+    public int? InputInterval { get; set; } // Nullable so it's not required
+
+    [BindProperty]
+    public int? InputTimeout { get; set; } // Nullable so it's not required
 
     public List<UrlMonitor> UrlMonitors { get; set; } = new(); // Holds data loaded from the database
 
     public async Task OnGetAsync()
     {
-        // Load all URLs from the database, newest first
         UrlMonitors = await _context.UrlMonitors
+            .Include(m => m.History
+                .OrderByDescending(h => h.CheckedAt)
+                .Take(1))
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
-
-        var now = DateTime.UtcNow;
-        var staleThreshold = TimeSpan.FromSeconds(60);
-
-        foreach (var monitor in UrlMonitors)
-        {
-            if (monitor.LastChecked == null ||
-                now - monitor.LastChecked > staleThreshold)
-            {
-                var result = await _urlChecker.CheckUrlAsync(monitor.Url);
-
-                monitor.LastChecked = result.CheckedAt;
-                monitor.IsUp = result.IsUp;
-                monitor.LatencyMs = result.LatencyMs;
-            }
-        }
-
-        await _context.SaveChangesAsync();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)
         {
-            // Reload the list so it displays even when validation fails
+            // Reload monitors for the table
             UrlMonitors = await _context.UrlMonitors
-                .OrderByDescending(u => u.CreatedAt)
+                .Include(m => m.History.OrderByDescending(h => h.CheckedAt).Take(1))
                 .ToListAsync();
             return Page();
         }
 
-        var result = await _urlChecker.CheckUrlAsync(InputValue);
+        // Determine values: use user input OR defaults
+        int finalTimeout = InputTimeout ?? 5000;
+        int finalInterval = InputInterval ?? 60;
 
-        // Create new URL monitor
+        var result = await _urlChecker.CheckUrlAsync(InputUrl, finalTimeout);
+
         var urlMonitor = new UrlMonitor
         {
-            Url = InputValue,
-            CreatedAt = result.CheckedAt,
-            LastChecked = result.CheckedAt,
-            LatencyMs = result.LatencyMs,
-            IsUp = result.IsUp
+            Url = InputUrl,
+            CreatedAt = DateTime.UtcNow,
+            CheckIntervalSeconds = finalInterval,
+            TimeoutMs = finalTimeout,
+            IsActive = true,
+            History = new List<LatencyHistory>
+        {
+            new LatencyHistory
+            {
+                CheckedAt = result.CheckedAt,
+                LatencyMs = result.LatencyMs ?? 0,
+                StatusCode = result.StatusCode,
+                ErrorMessage = result.IsUp ? string.Empty : "Initial check failed"
+            }
+        }
         };
 
-        // Adds the new entity to EF Core's change tracker
         _context.UrlMonitors.Add(urlMonitor);
-        // Persists the new entity to the database
         await _context.SaveChangesAsync();
 
-        return RedirectToPage(); // Refresh page to see new entry
+        return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostDeleteAsync(int id)
@@ -89,9 +90,7 @@ public class IndexModel : PageModel
 
         if (urlMonitor != null)
         {
-            // Marks the entity for deletion in EF Core's change tracker
             _context.UrlMonitors.Remove(urlMonitor);
-            // Executes the deletion in the database
             await _context.SaveChangesAsync();
         }
 

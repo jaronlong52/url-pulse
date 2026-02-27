@@ -12,6 +12,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<IUrlChecker, UrlChecker>();
+builder.Services.AddHostedService<UrlMonitoringService>();
 
 var app = builder.Build();
 
