@@ -46,7 +46,6 @@
     <div class="card shadow-sm">
         <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
             <h5 class="mb-0 text-dark fw-bold">Active Monitors</h5>
-            <span class="text-muted small">Auto-refreshing every 60 seconds</span>
         </div>
 
         <div class="card-body p-0">
@@ -74,7 +73,7 @@
                                 latest.StatusCode >= 200 &&
                                 latest.StatusCode < 300;
 
-                                <tr>
+                                <tr id="monitor-@monitor.Id">
                                     <td>
                                         <span class="badge rounded-pill bg-@(isUp ? "success" : "danger") px-3">
                                             @(isUp ? "UP" : "DOWN")
@@ -150,34 +149,63 @@
 </div>
 
 <script>
-    // Compute "X minutes ago" dynamically in browser
-    function updateRelativeTimes() {
-        const elements = document.querySelectorAll(".last-checked");
+    function computeRelativeTime(utc) {
+        const checkedTime = new Date(utc);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - checkedTime) / 60000);
 
-        elements.forEach(el => {
+        return diffMinutes <= 0
+            ? "Just now"
+            : diffMinutes + " minutes ago";
+    }
+
+    function updateRelativeTimes() {
+        document.querySelectorAll(".last-checked").forEach(el => {
             const utc = el.dataset.utc;
             if (!utc) return;
+            el.textContent = computeRelativeTime(utc);
+        });
+    }
 
-            const checkedTime = new Date(utc);
-            const now = new Date();
-            const diffMinutes = Math.floor((now - checkedTime) / 60000);
+    async function refreshMonitors() {
+        const response = await fetch('?handler=Monitors');
+        const monitors = await response.json();
 
-            if (diffMinutes <= 1) {
-                el.textContent = "1 minute ago";
-            } else {
-                el.textContent = diffMinutes + " minutes ago";
+        const rows = document.querySelectorAll("tbody tr");
+
+        monitors.forEach(monitor => {
+            const row = document.getElementById(`monitor-${monitor.id}`);
+            if (!row) return;
+
+            const isUp = monitor.latest &&
+                monitor.latest.statusCode >= 200 &&
+                monitor.latest.statusCode < 300;
+
+            row.querySelector(".badge").className =
+                `badge rounded-pill px-3 ${isUp ? "bg-success" : "bg-danger"}`;
+
+            row.querySelector(".badge").textContent =
+                isUp ? "UP" : "DOWN";
+
+            if (monitor.latest) {
+                const lastChecked = row.querySelector(".last-checked");
+                lastChecked.dataset.utc = monitor.latest.checkedAt;
+                lastChecked.textContent =
+                    computeRelativeTime(monitor.latest.checkedAt);
+
+                const latencyEl = row.querySelector(".fw-bold");
+                latencyEl.textContent =
+                    monitor.latest.latencyMs + " ms";
+                latencyEl.className =
+                    `fw-bold ${isUp ? "text-success" : "text-danger"}`;
+
+                row.querySelector("small").textContent =
+                    "Code: " + monitor.latest.statusCode;
             }
         });
     }
 
-    // Update immediately on load
     updateRelativeTimes();
-
-    // Update every 30 seconds for live minute tracking
     setInterval(updateRelativeTimes, 30000);
-
-    // Refresh entire page every 60 seconds (display-only refresh)
-    setInterval(function () {
-        location.reload();
-    }, 60000);
+    setInterval(refreshMonitors, 60000);
 </script>
