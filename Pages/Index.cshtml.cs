@@ -22,80 +22,49 @@ public class IndexModel : PageModel
 
     [BindProperty]
     [Url(ErrorMessage = "Invalid URL format")]
-    public string InputValue { get; set; } = string.Empty; // Initialized to empty because string type is non-nullable
+    public string InputUrl { get; set; } = string.Empty;
+
+    [BindProperty]
+    public int? InputInterval { get; set; } // Nullable so it's not required
+
+    [BindProperty]
+    public int? InputTimeout { get; set; } // Nullable so it's not required
 
     public List<UrlMonitor> UrlMonitors { get; set; } = new(); // Holds data loaded from the database
 
     public async Task OnGetAsync()
     {
-        // Load monitors and include the latest history entry to check for staleness
         UrlMonitors = await _context.UrlMonitors
-            .Include(m => m.History.OrderByDescending(h => h.CheckedAt).Take(1))
+            .Include(m => m.History
+                .OrderByDescending(h => h.CheckedAt)
+                .Take(1))
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
-
-        var now = DateTime.UtcNow;
-        var tasks = new List<Task>();
-
-        foreach (var monitor in UrlMonitors)
-        {
-            var lastCheck = monitor.History.FirstOrDefault();
-
-            // Check if it's time for a new pulse
-            if (lastCheck == null || (now - lastCheck.CheckedAt).TotalSeconds > monitor.CheckIntervalSeconds)
-            {
-                // We launch the tasks in parallel
-                tasks.Add(PerformUrlCheck(monitor));
-            }
-        }
-
-        if (tasks.Any())
-        {
-            await Task.WhenAll(tasks);
-            await _context.SaveChangesAsync();
-        }
-    }
-
-    private async Task PerformUrlCheck(UrlMonitor monitor)
-    {
-        var result = await _urlChecker.CheckUrlAsync(monitor.Url, monitor.TimeoutMs);
-
-        var history = new LatencyHistory
-        {
-            UrlMonitorId = monitor.Id,
-            CheckedAt = result.CheckedAt,
-            LatencyMs = result.LatencyMs ?? 0,
-            StatusCode = result.StatusCode,
-            ErrorMessage = result.IsUp ? string.Empty : "Service Unavailable"
-        };
-
-        // Add to the context; EF handles the foreign key via the list or ID
-        _context.LatencyHistories.Add(history);
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid)
         {
-            // Reload list for the UI if validation fails
+            // Reload monitors for the table
             UrlMonitors = await _context.UrlMonitors
                 .Include(m => m.History.OrderByDescending(h => h.CheckedAt).Take(1))
-                .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
             return Page();
         }
-        // TODO - Add the necessary inputs to the frontend so user can input timout and check intervals
 
-        // 1. Perform the initial check immediately
-        var result = await _urlChecker.CheckUrlAsync(InputValue, 5000);
+        // Determine values: use user input OR defaults
+        int finalTimeout = InputTimeout ?? 5000;
+        int finalInterval = InputInterval ?? 60;
 
-        // 2. Create the Monitor with its first History record
+        var result = await _urlChecker.CheckUrlAsync(InputUrl, finalTimeout);
+
         var urlMonitor = new UrlMonitor
         {
-            Url = InputValue,
+            Url = InputUrl,
             CreatedAt = DateTime.UtcNow,
-            CheckIntervalSeconds = 60, // Default values from your model
-            TimeoutMs = 5000,
+            CheckIntervalSeconds = finalInterval,
+            TimeoutMs = finalTimeout,
             IsActive = true,
             History = new List<LatencyHistory>
         {

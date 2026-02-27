@@ -11,7 +11,7 @@ public class UrlChecker : IUrlChecker
     _httpClient = httpClient;
   }
 
-  public async Task<UrlCheckResult> CheckUrlAsync(string url, int timeoutMs = 10000)
+  public async Task<UrlCheckResult> CheckUrlAsync(string url, int timeoutMs)
   {
     var checkedAt = DateTime.UtcNow;
 
