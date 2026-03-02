@@ -27,15 +27,15 @@
                     </div>
 
                     <div class="col-md-5">
-                        <label asp-for="InputInterval" class="form-label small fw-bold">Check Interval (seconds)</label>
-                        <input asp-for="InputInterval" type="number" class="form-control" placeholder="Default: 60"
-                            min="10">
+                        <label asp-for="InputInterval" class="form-label small fw-bold">Check Interval (minutes)</label>
+                        <input asp-for="InputInterval" type="number" class="form-control" placeholder="Default: 1"
+                            min="1">
                     </div>
 
                     <div class="col-md-4">
                         <label asp-for="InputTimeout" class="form-label small fw-bold">Timeout (ms)</label>
                         <input asp-for="InputTimeout" type="number" class="form-control" placeholder="Default: 5000"
-                            min="500">
+                            min="100">
                     </div>
 
                     <div class="col-md-3 d-grid align-items-end">

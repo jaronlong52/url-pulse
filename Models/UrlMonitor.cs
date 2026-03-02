@@ -4,7 +4,7 @@ public class UrlMonitor
 {
   public int Id { get; set; }
   public string Url { get; set; } = string.Empty;
-  public int CheckIntervalSeconds { get; set; } = 60; // How often to check the URL
+  public int CheckIntervalMinutes { get; set; } = 1; // How often to check the URL
   public bool IsPaused { get; set; } = false; // Whether the monitor is currently paused
   public int TimeoutMs { get; set; } = 5000; // How long to wait before considering the check a failure
   public bool IsActive { get; set; } = true; // Whether site is currently active

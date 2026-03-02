@@ -77,7 +77,7 @@ public class UrlMonitoringService : BackgroundService
       // Respect per-monitor interval.
       // Skip if the monitor is not yet due for another check.
       if (lastCheck != null &&
-          (now - lastCheck.CheckedAt).TotalSeconds < monitor.CheckIntervalSeconds)
+          (now - lastCheck.CheckedAt).TotalMinutes < monitor.CheckIntervalMinutes)
       {
         continue;
       }

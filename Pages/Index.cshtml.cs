@@ -39,7 +39,7 @@ public class IndexModel : PageModel
             {
                 Id = u.Id,
                 Url = u.Url,
-                CheckIntervalSeconds = u.CheckIntervalSeconds,
+                CheckIntervalMinutes = u.CheckIntervalMinutes,
                 TimeoutMs = u.TimeoutMs,
                 CreatedAt = u.CreatedAt,
                 IsActive = u.IsActive,
@@ -62,7 +62,7 @@ public class IndexModel : PageModel
         }
 
         int finalTimeout = InputTimeout ?? 5000;
-        int finalInterval = InputInterval ?? 60;
+        int finalInterval = InputInterval ?? 1;
 
         var result = await _urlChecker.CheckUrlAsync(InputUrl, finalTimeout);
 
@@ -70,7 +70,7 @@ public class IndexModel : PageModel
         {
             Url = InputUrl,
             CreatedAt = DateTime.UtcNow,
-            CheckIntervalSeconds = finalInterval,
+            CheckIntervalMinutes = finalInterval,
             TimeoutMs = finalTimeout,
             IsActive = true,
             History = new List<LatencyHistory>
