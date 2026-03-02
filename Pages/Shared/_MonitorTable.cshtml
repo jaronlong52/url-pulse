@@ -1,0 +1,74 @@
+@model List<UrlPulse.Models.UrlMonitor>
+
+@if (Model.Any())
+{
+  foreach (var monitor in Model)
+  {
+    var latest = monitor.History.FirstOrDefault();
+    var isUp = latest != null && latest.StatusCode >= 200 && latest.StatusCode < 300;
+
+    <tr id="monitor-@monitor.Id">
+      <td>
+        <span class="badge rounded-pill bg-@(isUp ? "success" : "danger") px-3">
+          @(isUp ? "UP" : "DOWN")
+        </span>
+      </td>
+      <td>
+        <div class="fw-bold text-dark">@monitor.Url</div>
+        <div class="text-muted small">
+          Interval: @(monitor.CheckIntervalSeconds)s |
+          Timeout: @(monitor.TimeoutMs)ms
+        </div>
+      </td>
+      <td>
+        @if (latest != null)
+        {
+          <span title="@latest.CheckedAt.ToString("f")">
+            @latest.CheckedAt.ToLocalTime().ToString("g")
+          </span>
+        }
+        else
+        {
+          <span class="text-muted">Never</span>
+        }
+      </td>
+      <td>
+        @if (latest != null)
+        {
+          <div class="d-flex flex-column">
+            <span class="fw-bold @(isUp ? "text-success" : "text-danger")">
+              @(latest.LatencyMs) ms
+            </span>
+            <small class="text-muted">Code: @latest.StatusCode</small>
+          </div>
+        }
+        else
+        {
+          <span class="text-muted">-</span>
+        }
+      </td>
+      <td class="text-end px-4">
+        <div class="d-flex justify-content-end gap-2">
+          <button class="btn btn-sm pause-btn @(monitor.IsPaused ? "btn-warning" : "btn-outline-warning")"
+            data-id="@monitor.Id" data-paused="@monitor.IsPaused.ToString().ToLower()">
+            <i class="bi @(monitor.IsPaused ? "bi-pause-fill" : "bi-play-fill")"></i>
+            @(monitor.IsPaused ? "Paused" : "Pause")
+          </button>
+
+          <button class="btn btn-sm btn-outline-danger delete-btn" data-id="@monitor.Id">
+            <i class="bi bi-trash"></i> Delete
+          </button>
+        </div>
+      </td>
+    </tr>
+  }
+}
+else
+{
+  <tr>
+    <td colspan="5" class="text-center text-muted py-5">
+      <i class="bi bi-search display-4 d-block mb-3"></i>
+      No monitors configured.
+    </td>
+  </tr>
+}

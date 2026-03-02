@@ -43,6 +43,7 @@ public class IndexModel : PageModel
                 TimeoutMs = u.TimeoutMs,
                 CreatedAt = u.CreatedAt,
                 IsActive = u.IsActive,
+                IsPaused = u.IsPaused,
                 History = u.History
                     .OrderByDescending(h => h.CheckedAt)
                     .Take(1)
@@ -50,32 +51,6 @@ public class IndexModel : PageModel
             })
             .AsNoTracking()
             .ToListAsync();
-    }
-
-    public async Task<JsonResult> OnGetMonitorsAsync()
-    {
-        var monitors = await _context.UrlMonitors
-            .OrderByDescending(u => u.CreatedAt)
-            .Select(u => new
-            {
-                u.Id,
-                u.Url,
-                u.CheckIntervalSeconds,
-                u.TimeoutMs,
-                Latest = u.History
-                    .OrderByDescending(h => h.CheckedAt)
-                    .Select(h => new
-                    {
-                        h.CheckedAt,
-                        h.LatencyMs,
-                        h.StatusCode
-                    })
-                    .FirstOrDefault()
-            })
-            .AsNoTracking()
-            .ToListAsync();
-
-        return new JsonResult(monitors);
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -126,6 +101,25 @@ public class IndexModel : PageModel
             await _context.SaveChangesAsync();
         }
 
-        return RedirectToPage();
+        return new OkResult();
+    }
+
+    public async Task<PartialViewResult> OnGetMonitorsPartialAsync()
+    {
+        await OnGetAsync();
+        return Partial("_MonitorTable", UrlMonitors);
+    }
+
+    public async Task<IActionResult> OnPostSetPauseAsync(int id)
+    {
+        var monitor = await _context.UrlMonitors.FindAsync(id);
+        if (monitor == null)
+            return NotFound();
+
+        monitor.IsPaused = !monitor.IsPaused;
+
+        await _context.SaveChangesAsync();
+
+        return new JsonResult(new { isPaused = monitor.IsPaused });
     }
 }

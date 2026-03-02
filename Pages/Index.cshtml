@@ -4,6 +4,9 @@
     ViewData["Title"] = "URL Pulse Dashboard";
 }
 
+@* Single, stable antiforgery token outside the refreshed partial *@
+@Html.AntiForgeryToken()
+
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="display-5 fw-bold text-primary">URL Pulse</h1>
@@ -44,7 +47,7 @@
     </div>
 
     <div class="card shadow-sm">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+        <div class="card-header bg-white py-3">
             <h5 class="mb-0 text-dark fw-bold">Active Monitors</h5>
         </div>
 
@@ -60,87 +63,8 @@
                             <th class="text-end px-4">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @if (Model.UrlMonitors.Any())
-                        {
-                            @foreach (var monitor in Model.UrlMonitors)
-                            {
-                                var latest = monitor.History
-                                .OrderByDescending(h => h.CheckedAt)
-                                .FirstOrDefault();
-
-                                var isUp = latest != null &&
-                                latest.StatusCode >= 200 &&
-                                latest.StatusCode < 300;
-
-                                <tr id="monitor-@monitor.Id">
-                                    <td>
-                                        <span class="badge rounded-pill bg-@(isUp ? "success" : "danger") px-3">
-                                            @(isUp ? "UP" : "DOWN")
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        <div class="fw-bold text-dark">@monitor.Url</div>
-                                        <div class="text-muted small">
-                                            Interval: @(monitor.CheckIntervalSeconds)s |
-                                            Timeout: @(monitor.TimeoutMs)ms
-                                        </div>
-                                    </td>
-
-                                    <td>
-                                        @if (latest != null)
-                                        {
-                                            <!-- Store UTC time in data attribute for JS to compute relative time -->
-                                            <span class="last-checked" data-utc="@latest.CheckedAt.ToString("o")"
-                                                title="@latest.CheckedAt.ToString("f")">
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Never</span>
-                                        }
-                                    </td>
-
-                                    <td>
-                                        @if (latest != null)
-                                        {
-                                            <div class="d-flex flex-column">
-                                                <span class="fw-bold @(isUp ? "text-success" : "text-danger")">
-                                                    @(latest.LatencyMs) ms
-                                                </span>
-                                                <small class="text-muted">
-                                                    Code: @latest.StatusCode
-                                                </small>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">-</span>
-                                        }
-                                    </td>
-
-                                    <td class="text-end px-4">
-                                        <form method="post" asp-page-handler="Delete"
-                                            onsubmit="return confirm('Delete this monitor?');">
-                                            <input type="hidden" name="id" value="@monitor.Id" />
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            }
-                        }
-                        else
-                        {
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-5">
-                                    <i class="bi bi-search display-4 d-block mb-3"></i>
-                                    No monitors configured.
-                                </td>
-                            </tr>
-                        }
+                    <tbody id="monitor-table">
+                        <partial name="_MonitorTable" model="Model.UrlMonitors" />
                     </tbody>
                 </table>
             </div>
@@ -149,63 +73,89 @@
 </div>
 
 <script>
-    function computeRelativeTime(utc) {
-        const checkedTime = new Date(utc);
-        const now = new Date();
-        const diffMinutes = Math.floor((now - checkedTime) / 60000);
-
-        return diffMinutes <= 0
-            ? "Just now"
-            : diffMinutes + " minutes ago";
+    // Single source of truth for the antiforgery token.
+    // Lives outside the refreshed partial so it is never stale.
+    function getToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]').value;
     }
 
-    function updateRelativeTimes() {
-        document.querySelectorAll(".last-checked").forEach(el => {
-            const utc = el.dataset.utc;
-            if (!utc) return;
-            el.textContent = computeRelativeTime(utc);
-        });
+    // Replaces the table body with fresh server-rendered HTML.
+    // Called periodically and after mutations that affect multiple rows.
+    async function refreshTable() {
+        const response = await fetch('?handler=MonitorsPartial');
+        if (response.ok) {
+            document.getElementById("monitor-table").innerHTML = await response.text();
+        }
     }
 
-    async function refreshMonitors() {
-        const response = await fetch('?handler=Monitors');
-        const monitors = await response.json();
+    // Background refresh — keeps data current without blocking user interactions.
+    setInterval(refreshTable, 60_000);
 
-        const rows = document.querySelectorAll("tbody tr");
+    // Central handler for all action buttons via event delegation.
+    // Keeps logic co-located and avoids attaching listeners to dynamic rows.
+    document.addEventListener("click", async function (e) {
+        const pauseBtn = e.target.closest(".pause-btn");
+        const deleteBtn = e.target.closest(".delete-btn");
 
-        monitors.forEach(monitor => {
-            const row = document.getElementById(`monitor-${monitor.id}`);
-            if (!row) return;
+        if (pauseBtn) await handlePause(pauseBtn);
+        if (deleteBtn) await handleDelete(deleteBtn);
+    });
 
-            const isUp = monitor.latest &&
-                monitor.latest.statusCode >= 200 &&
-                monitor.latest.statusCode < 300;
+    async function handlePause(btn) {
+        const id = btn.dataset.id;
+        const wasPaused = btn.dataset.paused === "true";
 
-            row.querySelector(".badge").className =
-                `badge rounded-pill px-3 ${isUp ? "bg-success" : "bg-danger"}`;
+        // Optimistic update — immediate visual feedback.
+        setPauseUI(btn, !wasPaused);
+        btn.disabled = true;
 
-            row.querySelector(".badge").textContent =
-                isUp ? "UP" : "DOWN";
+        try {
+            const response = await fetch(`?handler=SetPause&id=${id}`, {
+                method: "POST",
+                headers: { "RequestVerificationToken": getToken() }
+            });
 
-            if (monitor.latest) {
-                const lastChecked = row.querySelector(".last-checked");
-                lastChecked.dataset.utc = monitor.latest.checkedAt;
-                lastChecked.textContent =
-                    computeRelativeTime(monitor.latest.checkedAt);
+            if (!response.ok) throw new Error("Server error");
 
-                const latencyEl = row.querySelector(".fw-bold");
-                latencyEl.textContent =
-                    monitor.latest.latencyMs + " ms";
-                latencyEl.className =
-                    `fw-bold ${isUp ? "text-success" : "text-danger"}`;
+            const data = await response.json();
 
-                row.querySelector("small").textContent =
-                    "Code: " + monitor.latest.statusCode;
-            }
-        });
+            // Reconcile with server truth in case of any drift.
+            setPauseUI(btn, data.isPaused);
+            btn.dataset.paused = data.isPaused;
+        } catch (err) {
+            // Revert on failure so the UI stays consistent with the database.
+            setPauseUI(btn, wasPaused);
+            console.error("Pause toggle failed:", err);
+        } finally {
+            btn.disabled = false;
+        }
     }
 
-    updateRelativeTimes();
-    setInterval(updateRelativeTimes, 30000);
-    setInterval(refreshMonitors, 60000);
+    async function handleDelete(btn) {
+        if (!confirm("Delete this monitor?")) return;
+
+        const id = btn.dataset.id;
+        const row = document.getElementById(`monitor-${id}`);
+
+        // Optimistic update — remove row immediately for responsiveness.
+        row?.remove();
+
+        try {
+            const response = await fetch(`?handler=Delete&id=${id}`, {
+                method: "POST",
+                headers: { "RequestVerificationToken": getToken() }
+            });
+
+            if (!response.ok) throw new Error("Server error");
+        } catch (err) {
+            // On failure, restore the full table from the server.
+            await refreshTable();
+            console.error("Delete failed:", err);
+        }
+    }
+
+    function setPauseUI(btn, isPaused) {
+        btn.className = `btn btn-sm pause-btn ${isPaused ? "btn-warning" : "btn-outline-warning"}`;
+        btn.innerHTML = `<i class="bi ${isPaused ? "bi-pause-fill" : "bi-play-fill"}"></i> ${isPaused ? "Paused" : "Pause"}`;
+    }
 </script>
