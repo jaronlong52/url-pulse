@@ -11,10 +11,6 @@ env:
   CONTAINER_APP: urlpulse
 
 jobs:
-
-  # =========================================================
-  # 1️⃣ BUILD + TEST JOB
-  # =========================================================
   build-and-test:
     runs-on: ubuntu-latest
 
@@ -42,24 +38,16 @@ jobs:
         name: test-results
         path: '**/*.trx'
 
-
-  # =========================================================
-  # 2️⃣ DOCKER + DEPLOY JOB
-  #    (ONLY RUNS IF TESTS PASS)
-  # =========================================================
   docker-and-deploy:
     runs-on: ubuntu-latest
-    needs: build-and-test     # 🚨 CRITICAL LINE
-    if: success()             # ensures job only runs if tests passed
+    needs: build-and-test
+    if: success() # ensures job only runs if tests passed
 
     steps:
 
     - name: Checkout
       uses: actions/checkout@v4
 
-    # -------------------------
-    # Login to Azure
-    # -------------------------
     - name: Azure Login
       uses: azure/login@v2
       with:
@@ -71,35 +59,24 @@ jobs:
             "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
           }
 
-    # -------------------------
-    # Login to Azure Container Registry
-    # -------------------------
     - name: Docker login to ACR
       run: |
         echo ${{ secrets.ACR_PASSWORD }} | docker login $REGISTRY \
           -u ${{ secrets.ACR_USERNAME }} --password-stdin
 
-    # -------------------------
-    # Build Docker image
-    # -------------------------
     - name: Build image
       run: |
         docker build \
+          -f Web/Dockerfile \
           -t $REGISTRY/${{ env.IMAGE_NAME }}:${{ github.sha }} \
           -t $REGISTRY/${{ env.IMAGE_NAME }}:latest \
           .
 
-    # -------------------------
-    # Push Docker image
-    # -------------------------
     - name: Push image
       run: |
         docker push $REGISTRY/${{ env.IMAGE_NAME }}:${{ github.sha }}
         docker push $REGISTRY/${{ env.IMAGE_NAME }}:latest
 
-    # -------------------------
-    # Deploy new revision to Container App
-    # -------------------------
     - name: Deploy revision
       run: |
         az containerapp update \
@@ -107,9 +84,6 @@ jobs:
           --resource-group $RESOURCE_GROUP \
           --image $REGISTRY/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-    # -------------------------
-    # Show deployment result
-    # -------------------------
     - name: Show URL
       run: |
         az containerapp show \
