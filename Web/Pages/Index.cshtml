@@ -1,0 +1,161 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "URL Pulse Dashboard";
+}
+
+@* Single, stable antiforgery token outside the refreshed partial *@
+@Html.AntiForgeryToken()
+
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-primary">URL Pulse</h1>
+        <span class="badge bg-success">System Active</span>
+    </div>
+
+    <div class="card shadow-sm mb-5">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Add New Monitor</h5>
+            <form method="post">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label asp-for="InputUrl" class="form-label small fw-bold">Target URL</label>
+                        <input asp-for="InputUrl" type="url"
+                            class="form-control @(ViewData.ModelState.IsValid ? "" : "is-invalid")"
+                            placeholder="https://example.com" required>
+                        <span asp-validation-for="InputUrl" class="invalid-feedback"></span>
+                    </div>
+
+                    <div class="col-md-5">
+                        <label asp-for="InputInterval" class="form-label small fw-bold">Check Interval (minutes)</label>
+                        <input asp-for="InputInterval" type="number" class="form-control" placeholder="Default: 1"
+                            min="1">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="InputTimeout" class="form-label small fw-bold">Timeout (ms)</label>
+                        <input asp-for="InputTimeout" type="number" class="form-control" placeholder="Default: 5000"
+                            min="100">
+                    </div>
+
+                    <div class="col-md-3 d-grid align-items-end">
+                        <button type="submit" class="btn btn-primary">Add Target</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 text-dark fw-bold">Active Monitors</h5>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 100px;">Status</th>
+                            <th>Target Information</th>
+                            <th>Last Check</th>
+                            <th>Response</th>
+                            <th class="text-end px-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monitor-table">
+                        <partial name="_MonitorTable" model="Model.UrlMonitors" />
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Single source of truth for the antiforgery token.
+    // Lives outside the refreshed partial so it is never stale.
+    function getToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]').value;
+    }
+
+    // Replaces the table body with fresh server-rendered HTML.
+    // Called periodically and after mutations that affect multiple rows.
+    async function refreshTable() {
+        const response = await fetch('?handler=MonitorsPartial');
+        if (response.ok) {
+            document.getElementById("monitor-table").innerHTML = await response.text();
+        }
+    }
+
+    // Background refresh — keeps data current without blocking user interactions.
+    setInterval(refreshTable, 60_000);
+
+    // Central handler for all action buttons via event delegation.
+    // Keeps logic co-located and avoids attaching listeners to dynamic rows.
+    document.addEventListener("click", async function (e) {
+        const pauseBtn = e.target.closest(".pause-btn");
+        const deleteBtn = e.target.closest(".delete-btn");
+
+        if (pauseBtn) await handlePause(pauseBtn);
+        if (deleteBtn) await handleDelete(deleteBtn);
+    });
+
+    async function handlePause(btn) {
+        const id = btn.dataset.id;
+        const wasPaused = btn.dataset.paused === "true";
+
+        // Optimistic update — immediate visual feedback.
+        setPauseUI(btn, !wasPaused);
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`?handler=SetPause&id=${id}`, {
+                method: "POST",
+                headers: { "RequestVerificationToken": getToken() }
+            });
+
+            if (!response.ok) throw new Error("Server error");
+
+            const data = await response.json();
+
+            // Reconcile with server truth in case of any drift.
+            setPauseUI(btn, data.isPaused);
+            btn.dataset.paused = data.isPaused;
+        } catch (err) {
+            // Revert on failure so the UI stays consistent with the database.
+            setPauseUI(btn, wasPaused);
+            console.error("Pause toggle failed:", err);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function handleDelete(btn) {
+        if (!confirm("Delete this monitor?")) return;
+
+        const id = btn.dataset.id;
+        const row = document.getElementById(`monitor-${id}`);
+
+        // Optimistic update — remove row immediately for responsiveness.
+        row?.remove();
+
+        try {
+            const response = await fetch(`?handler=Delete&id=${id}`, {
+                method: "POST",
+                headers: { "RequestVerificationToken": getToken() }
+            });
+
+            if (!response.ok) throw new Error("Server error");
+        } catch (err) {
+            // On failure, restore the full table from the server.
+            await refreshTable();
+            console.error("Delete failed:", err);
+        }
+    }
+
+    function setPauseUI(btn, isPaused) {
+        btn.className = `btn btn-sm pause-btn ${isPaused ? "btn-warning" : "btn-outline-warning"}`;
+        btn.innerHTML = `<i class="bi ${isPaused ? "bi-pause-fill" : "bi-play-fill"}"></i> ${isPaused ? "Paused" : "Pause"}`;
+    }
+</script>

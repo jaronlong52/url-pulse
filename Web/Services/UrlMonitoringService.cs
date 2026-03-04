@@ -43,8 +43,9 @@ public class UrlMonitoringService : BackgroundService
         _logger.LogError(ex, "Error during monitoring cycle.");
       }
 
-      // Polling interval for checking which monitors are due.
-      await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+      // Wake up frequently enough to serve the shortest allowed interval.
+      // The per-monitor check inside RunChecksAsync decides if each one is due.
+      await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
     }
   }
 
@@ -63,7 +64,7 @@ public class UrlMonitoringService : BackgroundService
     // Load only active monitors and only their most recent history entry.
     // This avoids loading entire history collections
     var monitors = await context.UrlMonitors
-        .Where(m => m.IsActive)
+        .Where(m => m.IsActive && !m.IsPaused)
         .Include(m => m.History
             .OrderByDescending(h => h.CheckedAt)
             .Take(1))
@@ -76,7 +77,7 @@ public class UrlMonitoringService : BackgroundService
       // Respect per-monitor interval.
       // Skip if the monitor is not yet due for another check.
       if (lastCheck != null &&
-          (now - lastCheck.CheckedAt).TotalSeconds < monitor.CheckIntervalSeconds)
+          (now - lastCheck.CheckedAt).TotalMinutes < monitor.CheckIntervalMinutes)
       {
         continue;
       }

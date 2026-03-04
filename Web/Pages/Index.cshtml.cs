@@ -13,7 +13,6 @@ public class IndexModel : PageModel
     private readonly ApplicationDbContext _context;
     private readonly IUrlChecker _urlChecker;
 
-    // Constructor creates the DbContext instance via dependency injection
     public IndexModel(ApplicationDbContext context, IUrlChecker urlChecker)
     {
         _context = context;
@@ -25,20 +24,32 @@ public class IndexModel : PageModel
     public string InputUrl { get; set; } = string.Empty;
 
     [BindProperty]
-    public int? InputInterval { get; set; } // Nullable so it's not required
+    public int? InputInterval { get; set; }
 
     [BindProperty]
-    public int? InputTimeout { get; set; } // Nullable so it's not required
+    public int? InputTimeout { get; set; }
 
-    public List<UrlMonitor> UrlMonitors { get; set; } = new(); // Holds data loaded from the database
+    public List<UrlMonitor> UrlMonitors { get; set; } = new();
 
     public async Task OnGetAsync()
     {
         UrlMonitors = await _context.UrlMonitors
-            .Include(m => m.History
-                .OrderByDescending(h => h.CheckedAt)
-                .Take(1))
             .OrderByDescending(u => u.CreatedAt)
+            .Select(u => new UrlMonitor
+            {
+                Id = u.Id,
+                Url = u.Url,
+                CheckIntervalMinutes = u.CheckIntervalMinutes,
+                TimeoutMs = u.TimeoutMs,
+                CreatedAt = u.CreatedAt,
+                IsActive = u.IsActive,
+                IsPaused = u.IsPaused,
+                History = u.History
+                    .OrderByDescending(h => h.CheckedAt)
+                    .Take(1)
+                    .ToList()
+            })
+            .AsNoTracking()
             .ToListAsync();
     }
 
@@ -46,16 +57,12 @@ public class IndexModel : PageModel
     {
         if (!ModelState.IsValid)
         {
-            // Reload monitors for the table
-            UrlMonitors = await _context.UrlMonitors
-                .Include(m => m.History.OrderByDescending(h => h.CheckedAt).Take(1))
-                .ToListAsync();
+            await OnGetAsync();
             return Page();
         }
 
-        // Determine values: use user input OR defaults
         int finalTimeout = InputTimeout ?? 5000;
-        int finalInterval = InputInterval ?? 60;
+        int finalInterval = InputInterval ?? 1;
 
         var result = await _urlChecker.CheckUrlAsync(InputUrl, finalTimeout);
 
@@ -63,19 +70,19 @@ public class IndexModel : PageModel
         {
             Url = InputUrl,
             CreatedAt = DateTime.UtcNow,
-            CheckIntervalSeconds = finalInterval,
+            CheckIntervalMinutes = finalInterval,
             TimeoutMs = finalTimeout,
             IsActive = true,
             History = new List<LatencyHistory>
-        {
-            new LatencyHistory
             {
-                CheckedAt = result.CheckedAt,
-                LatencyMs = result.LatencyMs ?? 0,
-                StatusCode = result.StatusCode,
-                ErrorMessage = result.IsUp ? string.Empty : "Initial check failed"
+                new LatencyHistory
+                {
+                    CheckedAt = result.CheckedAt,
+                    LatencyMs = result.LatencyMs ?? 0,
+                    StatusCode = result.StatusCode,
+                    ErrorMessage = result.IsUp ? string.Empty : "Initial check failed"
+                }
             }
-        }
         };
 
         _context.UrlMonitors.Add(urlMonitor);
@@ -94,6 +101,25 @@ public class IndexModel : PageModel
             await _context.SaveChangesAsync();
         }
 
-        return RedirectToPage();
+        return new OkResult();
+    }
+
+    public async Task<PartialViewResult> OnGetMonitorsPartialAsync()
+    {
+        await OnGetAsync();
+        return Partial("_MonitorTable", UrlMonitors);
+    }
+
+    public async Task<IActionResult> OnPostSetPauseAsync(int id)
+    {
+        var monitor = await _context.UrlMonitors.FindAsync(id);
+        if (monitor == null)
+            return NotFound();
+
+        monitor.IsPaused = !monitor.IsPaused;
+
+        await _context.SaveChangesAsync();
+
+        return new JsonResult(new { isPaused = monitor.IsPaused });
     }
 }

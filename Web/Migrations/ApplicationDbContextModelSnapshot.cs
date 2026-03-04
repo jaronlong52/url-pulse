@@ -64,13 +64,16 @@ namespace UrlPulse.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("CheckIntervalSeconds")
+                    b.Property<int>("CheckIntervalMinutes")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPaused")
                         .HasColumnType("boolean");
 
                     b.Property<int>("TimeoutMs")
