@@ -85,6 +85,7 @@
         const response = await fetch('?handler=MonitorsPartial');
         if (response.ok) {
             document.getElementById("monitor-table").innerHTML = await response.text();
+            updateLocalTimes(); // format times after refresh
         }
     }
 
@@ -158,4 +159,23 @@
         btn.className = `btn btn-sm pause-btn ${isPaused ? "btn-warning" : "btn-outline-warning"}`;
         btn.innerHTML = `<i class="bi ${isPaused ? "bi-pause-fill" : "bi-play-fill"}"></i> ${isPaused ? "Paused" : "Pause"}`;
     }
+
+    // Converts UTC timestamps to the user's local browser time
+    function updateLocalTimes() {
+        document.querySelectorAll('.local-time').forEach(el => {
+            if (el.dataset.utc) {
+                // Parse the UTC string; ensure it ends with 'Z' if your DB strips it
+                const dateText = el.dataset.utc.endsWith('Z') ? el.dataset.utc : el.dataset.utc + 'Z';
+                const date = new Date(dateText);
+
+                if (!isNaN(date)) {
+                    el.textContent = date.toLocaleString();
+                    el.title = date.toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' });
+                }
+            }
+        });
+    }
+
+    // Run once on initial load
+    document.addEventListener("DOMContentLoaded", updateLocalTimes);
 </script>
