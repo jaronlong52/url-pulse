@@ -1,4 +1,4 @@
-namespace UrlPulse.Models;
+namespace UrlPulse.Core.Models;
 
 public class UrlMonitor
 {

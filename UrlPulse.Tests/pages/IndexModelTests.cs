@@ -8,10 +8,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Moq;
-using UrlPulse.Data;
-using UrlPulse.Models;
 using UrlPulse.Pages;
-using UrlPulse.Services;
+using UrlPulse.Core.Data;
+using UrlPulse.Core.Models;
+using UrlPulse.Core.Services;
+using UrlPulse.Core.Interfaces;
 
 namespace UrlPulse.Tests.Pages;
 

@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using UrlPulse.Data;
-using UrlPulse.Models;
-using UrlPulse.Services;
+using UrlPulse.Core.Data;
+using UrlPulse.Core.Models;
+using UrlPulse.Core.Interfaces;
 
 namespace UrlPulse.Pages;
 

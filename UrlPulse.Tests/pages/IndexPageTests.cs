@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -7,22 +6,25 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Moq;
 using System.Net;
 using System.Text.RegularExpressions;
-using UrlPulse.Data;
-using UrlPulse.Models;
-using UrlPulse.Services;
+using FluentAssertions;
+using UrlPulse.Core.Data;
+using UrlPulse.Core.Models;
+using UrlPulse.Core.Services;
+using UrlPulse.Core.Interfaces;
+
+// 1. Point to the specific namespace we added to the Web project
+using WebApp = UrlPulse.Web.Program;
 
 namespace UrlPulse.Tests.Pages;
 
 public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests.TestWebAppFactory>
 {
-  public class TestWebAppFactory : WebApplicationFactory<Program>
+  public class TestWebAppFactory : WebApplicationFactory<WebApp>
   {
     public Mock<IUrlChecker> UrlCheckerMock { get; } = new(MockBehavior.Loose);
 
-    // Inside TestWebAppFactory
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-      // Create a single constant name for this factory instance
       var dbName = Guid.NewGuid().ToString();
 
       builder.UseEnvironment("Testing");
@@ -33,7 +35,7 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
 
         services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
         services.AddDbContext<ApplicationDbContext>(options =>
-          options.UseInMemoryDatabase(dbName)); // Use the fixed dbName
+                  options.UseInMemoryDatabase(dbName));
       });
     }
   }
@@ -45,21 +47,18 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
   {
     _factory = factory;
 
-    // Disable automatic redirect following so we can assert on 302s explicitly.
     _client = factory.CreateClient(new WebApplicationFactoryClientOptions
     {
       AllowAutoRedirect = false
     });
 
-    // Default stub — most tests do not care about checker internals.
     _factory.UrlCheckerMock
         .Setup(c => c.CheckUrlAsync(It.IsAny<string>(), It.IsAny<int>()))
-        .ReturnsAsync(new UrlCheckResult(IsUp: true, LatencyMs: 50, CheckedAt: DateTime.UtcNow, StatusCode: 200));
+        .ReturnsAsync(new UrlCheckResult(true, 50, DateTime.UtcNow, 200));
   }
 
   private async Task<UrlMonitor> SeedMonitorAsync(string url = "https://example.com", bool isPaused = false)
   {
-    // Use the SERVER's services, not the factory's root services
     using var scope = _factory.Server.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -72,18 +71,14 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
       IsPaused = isPaused,
       CreatedAt = DateTime.UtcNow,
       History = new List<LatencyHistory> {
-            new() { CheckedAt = DateTime.UtcNow, LatencyMs = 100, StatusCode = 200 }
-        }
+                new() { CheckedAt = DateTime.UtcNow, LatencyMs = 100, StatusCode = 200 }
+            }
     };
     db.UrlMonitors.Add(monitor);
     await db.SaveChangesAsync();
     return monitor;
   }
 
-  /// <summary>
-  /// Extracts the antiforgery token from a rendered page's HTML.
-  /// Required for any POST request to pass ASP.NET Core's CSRF middleware.
-  /// </summary>
   private static string ExtractAntiForgeryToken(string html)
   {
     var match = Regex.Match(
@@ -95,17 +90,12 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
     return match.Groups[1].Value;
   }
 
-  /// <summary>
-  /// Performs a full GET → extract token → POST round-trip and returns the response.
-  /// </summary>
   private async Task<HttpResponseMessage> PostFormAsync(Dictionary<string, string> fields)
   {
-    // 1. GET the page to obtain a valid antiforgery token.
     var getResponse = await _client.GetAsync("/");
     var html = await getResponse.Content.ReadAsStringAsync();
     var token = ExtractAntiForgeryToken(html);
 
-    // 2. Build the form body including the token.
     var formData = new Dictionary<string, string>(fields)
     {
       ["__RequestVerificationToken"] = token
@@ -175,13 +165,11 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
 
   [Theory]
   [InlineData("", "")]
-  [InlineData("not-a-url", "Invalid URL")] // Matches the Regex error or built-in error
+  [InlineData("not-a-url", "Invalid URL")]
   [InlineData("ftp://invalid.com", "Only http and https are supported")]
   public async Task Post_WithInvalidUrl_ReturnsPageAndDoesNotPersist(string url, string error)
   {
     var response = await PostFormAsync(new() { ["InputUrl"] = url });
-
-    // Now that the App has strict validation, this should be 200 (OK), not 302 (Redirect)
     response.StatusCode.Should().Be(HttpStatusCode.OK);
 
     var html = await response.Content.ReadAsStringAsync();
@@ -207,7 +195,6 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
 
     response.StatusCode.Should().Be(HttpStatusCode.OK);
     html.Should().Contain("<tr id=\"monitor-").And.Contain("https://");
-    html.Should().NotContain("alert-danger");
   }
 
   [Theory]

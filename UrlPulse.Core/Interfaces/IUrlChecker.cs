@@ -1,4 +1,6 @@
-namespace UrlPulse.Services;
+using UrlPulse.Core.Services;
+
+namespace UrlPulse.Core.Interfaces;
 
 public interface IUrlChecker
 {
