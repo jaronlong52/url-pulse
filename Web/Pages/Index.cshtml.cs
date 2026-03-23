@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using UrlPulse.Data;
-using UrlPulse.Models;
-using UrlPulse.Services;
+using UrlPulse.Core.Data;
+using UrlPulse.Core.Models;
+using UrlPulse.Core.Interfaces;
 
 namespace UrlPulse.Pages;
 
@@ -20,7 +20,9 @@ public class IndexModel : PageModel
     }
 
     [BindProperty]
-    [Url(ErrorMessage = "Invalid URL format")]
+    [Required(ErrorMessage = "URL is required")]
+    // This regex replaces the loose [Url] attribute
+    [RegularExpression(@"^https?://.*", ErrorMessage = "Invalid URL. Only http and https are supported.")]
     public string InputUrl { get; set; } = string.Empty;
 
     [BindProperty]

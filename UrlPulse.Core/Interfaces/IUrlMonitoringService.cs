@@ -1,4 +1,4 @@
-namespace UrlPulse.Services;
+namespace UrlPulse.Core.Interfaces;
 
 public interface IUrlMonitoringService
 {

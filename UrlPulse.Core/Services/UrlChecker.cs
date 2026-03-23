@@ -1,6 +1,7 @@
 using System.Diagnostics;
+using UrlPulse.Core.Interfaces;
 
-namespace UrlPulse.Services;
+namespace UrlPulse.Core.Services;
 
 public class UrlChecker : IUrlChecker
 {

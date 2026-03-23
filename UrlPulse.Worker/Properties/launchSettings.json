@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "UrlPulse.Worker": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7187",
+      "launchBrowser": false
+    }
+  }
+}

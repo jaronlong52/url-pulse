@@ -1,4 +1,4 @@
-@model List<UrlPulse.Models.UrlMonitor>
+@model List<UrlPulse.Core.Models.UrlMonitor>
 
 @if (Model.Any())
 {
@@ -23,8 +23,8 @@
       <td>
         @if (latest != null)
         {
-          <span title="@latest.CheckedAt.ToString("f")">
-            @latest.CheckedAt.ToLocalTime().ToString("g")
+          <span class="local-time" data-utc="@latest.CheckedAt.ToString("O")">
+            @latest.CheckedAt.ToString("g") UTC
           </span>
         }
         else

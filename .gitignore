@@ -2,3 +2,10 @@
 bin/
 obj/
 .env
+# Azurite local storage data
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+*.json
+*.bin
+.azurite/

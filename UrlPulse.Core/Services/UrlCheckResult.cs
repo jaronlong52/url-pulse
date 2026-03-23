@@ -1,4 +1,4 @@
-namespace UrlPulse.Services;
+namespace UrlPulse.Core.Services;
 
 public record UrlCheckResult(
     bool IsUp,
