@@ -1,18 +1,40 @@
-name: Build and Deploy UrlPulse Container App on Azure
+name: Build and Deploy UrlPulse
 
 on:
   push:
     branches: [ main ]
 
 env:
-  IMAGE_NAME: urlpulse
+  IMAGE_NAME: urlpulse-web
   REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
   RESOURCE_GROUP: url-pulse-rg
   CONTAINER_APP: urlpulse
+  FUNCTION_APP_NAME: urlpulse-worker # <-- Ensure this matches your Azure Function name
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0'
+
+    - name: Restore and Build
+      run: |
+        dotnet restore
+        dotnet build --configuration Release --no-restore
+
+    - name: Run Tests
+      run: dotnet test --configuration Release --no-restore
+
+  docker-and-deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: success() # ensures job only runs if tests passed
 
     steps:
     - name: Checkout
@@ -23,71 +45,30 @@ jobs:
       with:
         dotnet-version: '10.0'
 
-    - name: Restore
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
-
-    - name: Run Tests
-      run: dotnet test --configuration Release --logger "trx;LogFileName=test-results.trx"
-
-    - name: Upload Test Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: '**/*.trx'
-
-  docker-and-deploy:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    if: success() # ensures job only runs if tests passed
-
-    steps:
-
-    - name: Checkout
-      uses: actions/checkout@v4
-
     - name: Azure Login
       uses: azure/login@v2
       with:
-        creds: >
-          {
-            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
-            "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
-          }
+        creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
 
-    - name: Docker login to ACR
+    - name: Docker login and Push Web
       run: |
-        echo ${{ secrets.ACR_PASSWORD }} | docker login $REGISTRY \
-          -u ${{ secrets.ACR_USERNAME }} --password-stdin
-
-    - name: Build image
-      run: |
-        docker build \
-          -f Web/Dockerfile \
-          -t $REGISTRY/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          -t $REGISTRY/${{ env.IMAGE_NAME }}:latest \
-          .
-
-    - name: Push image
-      run: |
+        echo ${{ secrets.ACR_PASSWORD }} | docker login $REGISTRY -u ${{ secrets.ACR_USERNAME }} --password-stdin
+        # CRITICAL: Build from root (.) so Docker can see UrlPulse.Core
+        docker build -f Web/Dockerfile -t $REGISTRY/${{ env.IMAGE_NAME }}:${{ github.sha }} .
         docker push $REGISTRY/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        docker push $REGISTRY/${{ env.IMAGE_NAME }}:latest
 
-    - name: Deploy revision
+    - name: Deploy Container App (Web)
       run: |
         az containerapp update \
           --name $CONTAINER_APP \
           --resource-group $RESOURCE_GROUP \
           --image $REGISTRY/${{ env.IMAGE_NAME }}:${{ github.sha }}
+    
+    - name: Publish Worker Function
+      run: dotnet publish UrlPulse.Worker/UrlPulse.Worker.csproj -c Release -o ./publish-worker
 
-    - name: Show URL
-      run: |
-        az containerapp show \
-          --name $CONTAINER_APP \
-          --resource-group $RESOURCE_GROUP \
-          --query "properties.configuration.ingress.fqdn" \
-          --output tsv
+    - name: Deploy Azure Function (Worker)
+      uses: Azure/functions-action@v1
+      with:
+        app-name: ${{ env.FUNCTION_APP_NAME }}
+        package: ./publish-worker
