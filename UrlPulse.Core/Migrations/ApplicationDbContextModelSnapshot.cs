@@ -2,30 +2,27 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UrlPulse.Core.Data;
 
 #nullable disable
 
-namespace UrlPulse.Migrations
+namespace UrlPulse.Core.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260227000644_InitialRedesign")]
-    partial class InitialRedesign
+    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.2")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("UrlPulse.Models.LatencyHistory", b =>
+            modelBuilder.Entity("UrlPulse.Core.Models.LatencyHistory", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -51,15 +48,12 @@ namespace UrlPulse.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CheckedAt");
-
-                    b.HasIndex("UrlMonitorId", "CheckedAt")
-                        .HasDatabaseName("IX_LatencyHistory_Monitor_Date");
+                    b.HasIndex("UrlMonitorId");
 
                     b.ToTable("LatencyHistories");
                 });
 
-            modelBuilder.Entity("UrlPulse.Models.UrlMonitor", b =>
+            modelBuilder.Entity("UrlPulse.Core.Models.UrlMonitor", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -67,13 +61,16 @@ namespace UrlPulse.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("CheckIntervalSeconds")
+                    b.Property<int>("CheckIntervalMinutes")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPaused")
                         .HasColumnType("boolean");
 
                     b.Property<int>("TimeoutMs")
@@ -88,9 +85,9 @@ namespace UrlPulse.Migrations
                     b.ToTable("UrlMonitors");
                 });
 
-            modelBuilder.Entity("UrlPulse.Models.LatencyHistory", b =>
+            modelBuilder.Entity("UrlPulse.Core.Models.LatencyHistory", b =>
                 {
-                    b.HasOne("UrlPulse.Models.UrlMonitor", "UrlMonitor")
+                    b.HasOne("UrlPulse.Core.Models.UrlMonitor", "UrlMonitor")
                         .WithMany("History")
                         .HasForeignKey("UrlMonitorId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -99,7 +96,7 @@ namespace UrlPulse.Migrations
                     b.Navigation("UrlMonitor");
                 });
 
-            modelBuilder.Entity("UrlPulse.Models.UrlMonitor", b =>
+            modelBuilder.Entity("UrlPulse.Core.Models.UrlMonitor", b =>
                 {
                     b.Navigation("History");
                 });

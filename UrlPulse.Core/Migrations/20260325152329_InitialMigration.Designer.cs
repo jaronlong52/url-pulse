@@ -2,27 +2,30 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UrlPulse.Core.Data;
 
 #nullable disable
 
-namespace UrlPulse.Migrations
+namespace UrlPulse.Core.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260325152329_InitialMigration")]
+    partial class InitialMigration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.2")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("UrlPulse.Models.LatencyHistory", b =>
+            modelBuilder.Entity("UrlPulse.Core.Models.LatencyHistory", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -48,15 +51,12 @@ namespace UrlPulse.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CheckedAt");
-
-                    b.HasIndex("UrlMonitorId", "CheckedAt")
-                        .HasDatabaseName("IX_LatencyHistory_Monitor_Date");
+                    b.HasIndex("UrlMonitorId");
 
                     b.ToTable("LatencyHistories");
                 });
 
-            modelBuilder.Entity("UrlPulse.Models.UrlMonitor", b =>
+            modelBuilder.Entity("UrlPulse.Core.Models.UrlMonitor", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -88,9 +88,9 @@ namespace UrlPulse.Migrations
                     b.ToTable("UrlMonitors");
                 });
 
-            modelBuilder.Entity("UrlPulse.Models.LatencyHistory", b =>
+            modelBuilder.Entity("UrlPulse.Core.Models.LatencyHistory", b =>
                 {
-                    b.HasOne("UrlPulse.Models.UrlMonitor", "UrlMonitor")
+                    b.HasOne("UrlPulse.Core.Models.UrlMonitor", "UrlMonitor")
                         .WithMany("History")
                         .HasForeignKey("UrlMonitorId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -99,7 +99,7 @@ namespace UrlPulse.Migrations
                     b.Navigation("UrlMonitor");
                 });
 
-            modelBuilder.Entity("UrlPulse.Models.UrlMonitor", b =>
+            modelBuilder.Entity("UrlPulse.Core.Models.UrlMonitor", b =>
                 {
                     b.Navigation("History");
                 });

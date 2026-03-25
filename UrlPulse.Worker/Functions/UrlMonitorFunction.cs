@@ -31,6 +31,7 @@ public class UrlMonitorFunction
     _logger.LogInformation($"Pulse check started at: {DateTime.UtcNow}");
 
     var now = DateTime.UtcNow;
+    const int toleranceSeconds = 5;
 
     // 1. Get active monitors
     var monitors = await _context.UrlMonitors
@@ -44,10 +45,16 @@ public class UrlMonitorFunction
     {
       var lastCheck = monitor.History.FirstOrDefault();
 
-      // 2. Skip if it's not time yet based on the user's interval
-      if (lastCheck != null && (now - lastCheck.CheckedAt).TotalMinutes < monitor.CheckIntervalMinutes)
+      // 2. Check if it's time (Interval - 5s Tolerance)
+      if (lastCheck != null)
       {
-        continue;
+        var elapsed = now - lastCheck.CheckedAt;
+        var thresholdSeconds = (monitor.CheckIntervalMinutes * 60) - toleranceSeconds;
+
+        if (elapsed.TotalSeconds < thresholdSeconds)
+        {
+          continue;
+        }
       }
 
       // 3. Perform the check
