@@ -15,12 +15,6 @@ public class ApplicationDbContext : DbContext
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
-    // Your existing indexing logic stays exactly the same!
-    modelBuilder.Entity<LatencyHistory>()
-        .HasIndex(h => new { h.UrlMonitorId, h.CheckedAt })
-        .HasDatabaseName("IX_LatencyHistory_Monitor_Date");
-
-    modelBuilder.Entity<LatencyHistory>()
-        .HasIndex(h => h.CheckedAt);
+    base.OnModelCreating(modelBuilder);
   }
 }
