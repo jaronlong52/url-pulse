@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -28,6 +29,18 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
       var dbName = Guid.NewGuid().ToString();
 
       builder.UseEnvironment("Testing");
+      builder.ConfigureAppConfiguration((context, config) =>
+      {
+        // Add dummy values so the Microsoft Identity library doesn't complain during startup
+        config.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+          ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
+          ["AzureAd:Domain"] = "testing.com",
+          ["AzureAd:TenantId"] = "common",
+          ["AzureAd:ClientId"] = "00000000-0000-0000-0000-000000000000",
+          ["AzureAd:CallbackPath"] = "/signin-oidc"
+        });
+      });
       builder.ConfigureServices(services =>
       {
         services.RemoveAll<IUrlChecker>();

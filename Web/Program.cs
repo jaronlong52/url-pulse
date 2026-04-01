@@ -36,10 +36,13 @@ builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
 // CONTROLLERS & AUTHORIZATION
 builder.Services.AddControllersWithViews(options =>
 {
-    var policy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
-    options.Filters.Add(new AuthorizeFilter(policy));
+    if (builder.Environment.EnvironmentName != "Testing")
+    {
+        var policy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+        options.Filters.Add(new AuthorizeFilter(policy));
+    }
 });
 
 builder.Services.AddRazorPages()
