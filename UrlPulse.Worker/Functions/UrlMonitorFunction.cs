@@ -33,7 +33,7 @@ public class UrlMonitorFunction
     var now = DateTime.UtcNow;
     const int toleranceSeconds = 5;
 
-    // 1. Get active monitors
+    // Get active monitors
     var monitors = await _context.UrlMonitors
         .Where(m => m.IsActive && !m.IsPaused)
         .Include(m => m.History
@@ -45,7 +45,7 @@ public class UrlMonitorFunction
     {
       var lastCheck = monitor.History.FirstOrDefault();
 
-      // 2. Check if it's time (Interval - 5s Tolerance)
+      // Check if it's time (Interval - 5s Tolerance)
       if (lastCheck != null)
       {
         var elapsed = now - lastCheck.CheckedAt;
@@ -57,14 +57,17 @@ public class UrlMonitorFunction
         }
       }
 
-      // 3. Perform the check
+      // Perform the check
       var result = await _checker.CheckUrlAsync(monitor.Url, monitor.TimeoutMs);
 
-      // 4. Log the result
+      string checkRegion = Environment.GetEnvironmentVariable("REGION_NAME") ?? "Unknown";
+
+      // Log the result
       _context.LatencyHistories.Add(new LatencyHistory
       {
         UrlMonitorId = monitor.Id,
         CheckedAt = result.CheckedAt,
+        Region = checkRegion,
         LatencyMs = result.LatencyMs ?? 0,
         StatusCode = result.StatusCode,
         ErrorMessage = result.IsUp ? string.Empty : "Service Unavailable"
