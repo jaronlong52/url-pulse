@@ -109,7 +109,7 @@ public class UrlMonitorFunctionTests
         CheckIntervalMinutes = 60
       };
       // Already checked 5 mins ago
-      monitor.History.Add(new LatencyHistory { CheckedAt = now.AddMinutes(-5), StatusCode = 200 });
+      monitor.History.Add(new LatencyHistory { CheckedAt = now.AddMinutes(-5), StatusCode = 200, Region = "Unknown" });
       context.UrlMonitors.Add(monitor);
     });
 
