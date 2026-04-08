@@ -28,7 +28,11 @@ public class UrlMonitorFunction
   [Function("UrlPulseTimer")]
   public async Task Run([TimerTrigger("0 */1 * * * *")] TimerInfo myTimer)
   {
-    _logger.LogInformation($"Pulse check started at: {DateTime.UtcNow}");
+    string checkRegion = Environment.GetEnvironmentVariable("REGION_NAME")
+                      ?? Environment.GetEnvironmentVariable("WEBSITE_REGION_NAME")
+                      ?? "Unknown";
+
+    _logger.LogInformation($"Pulse check started in {checkRegion} at: {DateTime.UtcNow}");
 
     var now = DateTime.UtcNow;
     const int toleranceSeconds = 5;
@@ -37,6 +41,7 @@ public class UrlMonitorFunction
     var monitors = await _context.UrlMonitors
         .Where(m => m.IsActive && !m.IsPaused)
         .Include(m => m.History
+            .Where(h => h.Region == checkRegion)
             .OrderByDescending(h => h.CheckedAt)
             .Take(1))
         .ToListAsync();
@@ -60,8 +65,6 @@ public class UrlMonitorFunction
       // Perform the check
       var result = await _checker.CheckUrlAsync(monitor.Url, monitor.TimeoutMs);
 
-      string checkRegion = Environment.GetEnvironmentVariable("REGION_NAME") ?? "Unknown";
-
       // Log the result
       _context.LatencyHistories.Add(new LatencyHistory
       {
@@ -73,7 +76,7 @@ public class UrlMonitorFunction
         ErrorMessage = result.IsUp ? string.Empty : "Service Unavailable"
       });
 
-      _logger.LogInformation($"Checked {monitor.Url}: {result.StatusCode}");
+      _logger.LogInformation($"[{checkRegion}] Checked {monitor.Url}: {result.StatusCode}");
     }
 
     // 5. Save everything in one batch
