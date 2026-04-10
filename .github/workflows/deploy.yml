@@ -71,37 +71,37 @@ jobs:
           --no-self-contained \
           -o ./publish-worker
 
+          # Manually zip the contents so its ready for all regions
+          cd ./publish-worker
+          zip -r ../worker.zip .
+          cd ..
+
     - name: Deploy Azure Function (northcentralus)
       uses: Azure/functions-action@v1
       with:
         app-name: "urlpulse-worker"
-        package: ./publish-worker
-        slot-name: production
+        package: ./worker.zip
 
     - name: Deploy Azure Function (southcentralus)
       uses: Azure/functions-action@v1
       with:
         app-name: "urlpulse-worker-southcentralus"
-        package: ./publish-worker
-        slot-name: production
+        package: ./worker.zip
 
     - name: Deploy Azure Function (westus3)
       uses: Azure/functions-action@v1
       with:
         app-name: "urlpulse-worker-westus3"
-        package: ./publish-worker
-        slot-name: production
+        package: ./worker.zip
 
     - name: Deploy Azure Function (eastus2)
       uses: Azure/functions-action@v1
       with:
         app-name: "urlpulse-worker-eastus2"
-        package: ./publish-worker
-        slot-name: production
+        package: ./worker.zip
 
     - name: Deploy Azure Function (canadacentral)
       uses: Azure/functions-action@v1
       with:
         app-name: "urlpulse-worker-canadacentral"
-        package: ./publish-worker
-        slot-name: production
+        package: ./worker.zip
