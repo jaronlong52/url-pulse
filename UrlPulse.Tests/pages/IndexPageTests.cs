@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Authentication;
 using Moq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -11,6 +12,7 @@ using UrlPulse.Core.Data;
 using UrlPulse.Core.Models;
 using UrlPulse.Core.Services;
 using UrlPulse.Core.Interfaces;
+using UrlPulse.Tests.TestAuth;
 
 // 1. Point to the specific namespace we added to the Web project
 using WebApp = UrlPulse.Web.Program;
@@ -29,14 +31,32 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
 
       builder.UseEnvironment("Testing");
       builder.ConfigureServices(services =>
-      {
-        services.RemoveAll<IUrlChecker>();
-        services.AddSingleton(UrlCheckerMock.Object);
+            {
+              // === Professional Auth Override ===
+              services.RemoveAll<IAuthenticationService>(); // clean old registration
 
-        services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
-        services.AddDbContext<ApplicationDbContext>(options =>
+              // Replace with our test scheme (this overrides Microsoft Identity Web in tests)
+              services.AddAuthentication(TestAuthHandler.SchemeName)
+                  .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                      TestAuthHandler.SchemeName,
+                      options => { });
+
+              // Ensure the app uses our test scheme as default
+              services.Configure<AuthenticationOptions>(options =>
+              {
+                options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+                options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+                options.DefaultScheme = TestAuthHandler.SchemeName;
+              });
+
+              // Your existing service overrides
+              services.RemoveAll<IUrlChecker>();
+              services.AddSingleton(UrlCheckerMock.Object);
+
+              services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
+              services.AddDbContext<ApplicationDbContext>(options =>
                   options.UseInMemoryDatabase(dbName));
-      });
+            });
     }
   }
 
