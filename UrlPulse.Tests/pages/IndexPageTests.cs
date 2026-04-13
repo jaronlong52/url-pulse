@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Builder;
 using Moq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -47,6 +50,19 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
                 options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
                 options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
                 options.DefaultScheme = TestAuthHandler.SchemeName;
+              });
+
+              services.Configure<AntiforgeryOptions>(options =>
+            {
+              options.Cookie.SameSite = SameSiteMode.Lax;     // Lax works better in tests
+              options.Cookie.SecurePolicy = CookieSecurePolicy.None; // Important for test HTTP
+            });
+
+              services.Configure<CookiePolicyOptions>(options =>
+              {
+                options.MinimumSameSitePolicy = SameSiteMode.Lax;
+                options.Secure = CookieSecurePolicy.None;   // Allow in test environment
+                options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
               });
 
               // Your existing service overrides
