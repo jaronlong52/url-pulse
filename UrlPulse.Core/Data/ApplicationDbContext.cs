@@ -6,7 +6,7 @@ namespace UrlPulse.Core.Data;
 
 public class ApplicationDbContext(
     DbContextOptions<ApplicationDbContext> options,
-    ICurrentUserService currentUserService) : DbContext(options), DbContext
+    ICurrentUserService currentUserService) : DbContext(options)
 {
   private readonly ICurrentUserService _currentUserService = currentUserService;
 
