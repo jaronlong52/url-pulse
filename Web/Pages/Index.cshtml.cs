@@ -95,7 +95,9 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostDeleteAsync(int id)
     {
-        var urlMonitor = await _context.UrlMonitors.FindAsync(id);
+        // FirstOrDefaultAsync ensures the Global Query Filter is applied
+        // If the monitor belongs to someone else, this returns null
+        var urlMonitor = await _context.UrlMonitors.FirstOrDefaultAsync(m => m.Id == id);
 
         if (urlMonitor != null)
         {
@@ -114,12 +116,13 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostSetPauseAsync(int id)
     {
-        var monitor = await _context.UrlMonitors.FindAsync(id);
+        // FirstOrDefaultAsync ensures the Global Query Filter is applied
+        // If the monitor belongs to someone else, this returns null
+        var monitor = await _context.UrlMonitors.FirstOrDefaultAsync(m => m.Id == id);
         if (monitor == null)
             return NotFound();
 
         monitor.IsPaused = !monitor.IsPaused;
-
         await _context.SaveChangesAsync();
 
         return new JsonResult(new { isPaused = monitor.IsPaused });

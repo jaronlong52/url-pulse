@@ -38,6 +38,9 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
     options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
 });
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (builder.Environment.EnvironmentName != "Testing")

@@ -17,7 +17,6 @@ using UrlPulse.Core.Services;
 using UrlPulse.Core.Interfaces;
 using UrlPulse.Tests.TestAuth;
 
-// 1. Point to the specific namespace we added to the Web project
 using WebApp = UrlPulse.Web.Program;
 
 namespace UrlPulse.Tests.Pages;
@@ -28,6 +27,16 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
   {
     public Mock<IUrlChecker> UrlCheckerMock { get; } = new(MockBehavior.Loose);
 
+    // Mock the CurrentUserService
+    public Mock<ICurrentUserService> CurrentUserServiceMock { get; } = new();
+    public string DefaultTestUserId { get; } = "test-user-123";
+
+    public TestWebAppFactory()
+    {
+      // By default, make the app think "test-user-123" is logged in
+      CurrentUserServiceMock.Setup(c => c.UserId).Returns(DefaultTestUserId);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
       var dbName = Guid.NewGuid().ToString();
@@ -36,15 +45,13 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
       builder.ConfigureServices(services =>
             {
               // === Professional Auth Override ===
-              services.RemoveAll<IAuthenticationService>(); // clean old registration
+              services.RemoveAll<IAuthenticationService>();
 
-              // Replace with our test scheme (this overrides Microsoft Identity Web in tests)
               services.AddAuthentication(TestAuthHandler.SchemeName)
                   .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                       TestAuthHandler.SchemeName,
                       options => { });
 
-              // Ensure the app uses our test scheme as default
               services.Configure<AuthenticationOptions>(options =>
               {
                 options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
@@ -54,20 +61,23 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
 
               services.Configure<AntiforgeryOptions>(options =>
             {
-              options.Cookie.SameSite = SameSiteMode.Lax;     // Lax works better in tests
-              options.Cookie.SecurePolicy = CookieSecurePolicy.None; // Important for test HTTP
+              options.Cookie.SameSite = SameSiteMode.Lax;
+              options.Cookie.SecurePolicy = CookieSecurePolicy.None;
             });
 
               services.Configure<CookiePolicyOptions>(options =>
               {
                 options.MinimumSameSitePolicy = SameSiteMode.Lax;
-                options.Secure = CookieSecurePolicy.None;   // Allow in test environment
+                options.Secure = CookieSecurePolicy.None;
                 options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
               });
 
-              // Your existing service overrides
               services.RemoveAll<IUrlChecker>();
               services.AddSingleton(UrlCheckerMock.Object);
+
+              // Inject the mocked CurrentUserService so DbContext uses it
+              services.RemoveAll<ICurrentUserService>();
+              services.AddSingleton(CurrentUserServiceMock.Object);
 
               services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
               services.AddDbContext<ApplicationDbContext>(options =>
@@ -93,8 +103,15 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
         .ReturnsAsync(new UrlCheckResult(true, 50, DateTime.UtcNow, 200));
   }
 
-  private async Task<UrlMonitor> SeedMonitorAsync(string url = "https://example.com", bool isPaused = false)
+  // Added overrideUserId to simulate other tenants saving data
+  private async Task<UrlMonitor> SeedMonitorAsync(string url = "https://example.com", bool isPaused = false, string? overrideUserId = null)
   {
+    // Temporarily switch the logged-in user if we are seeding someone else's data
+    if (overrideUserId != null)
+    {
+      _factory.CurrentUserServiceMock.Setup(c => c.UserId).Returns(overrideUserId);
+    }
+
     using var scope = _factory.Server.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -110,8 +127,16 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
                 new() { CheckedAt = DateTime.UtcNow, LatencyMs = 100, StatusCode = 200 }
             }
     };
+
     db.UrlMonitors.Add(monitor);
-    await db.SaveChangesAsync();
+    await db.SaveChangesAsync(); // SaveChangesAsync will automatically assign the OwnerId
+
+    // Reset back to default test user
+    if (overrideUserId != null)
+    {
+      _factory.CurrentUserServiceMock.Setup(c => c.UserId).Returns(_factory.DefaultTestUserId);
+    }
+
     return monitor;
   }
 
@@ -196,7 +221,8 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
 
     using var scope = _factory.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.UrlMonitors.Should().Contain(m => m.Url == "https://valid.com");
+    // Because of Global Query Filters, must bypass it in assertions to verify actual DB state
+    db.UrlMonitors.IgnoreQueryFilters().Should().Contain(m => m.Url == "https://valid.com" && m.OwnerId == _factory.DefaultTestUserId);
   }
 
   [Theory]
@@ -216,7 +242,7 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
 
     using var scope = _factory.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.UrlMonitors.Should().NotContain(m => m.Url == url);
+    db.UrlMonitors.IgnoreQueryFilters().Should().NotContain(m => m.Url == url);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -258,5 +284,43 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
   {
     var html = await _client.GetStringAsync("/");
     html.Should().Contain(snippet);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Multi-Tenant Data Isolation Security Tests
+  // ══════════════════════════════════════════════════════════════════════════
+
+  [Fact]
+  public async Task Get_DoesNotRenderOtherUsersMonitors()
+  {
+    // Seed a monitor owned by a completely different user
+    await SeedMonitorAsync("https://secret-domain.com", overrideUserId: "malicious-user-id");
+
+    // Load the page as our default test user
+    var html = await _client.GetStringAsync("/");
+
+    // The other user's data should be invisible due to the Global Query Filter
+    html.Should().NotContain("secret-domain.com");
+  }
+
+  [Fact]
+  public async Task Post_Delete_WithOtherUsersMonitor_DoesNotDeleteData()
+  {
+    // Seed a monitor owned by someone else
+    var otherUserMonitor = await SeedMonitorAsync("https://secret-domain.com", overrideUserId: "another-user-999");
+    var getResponse = await _client.GetAsync("/");
+    var token = ExtractAntiForgeryToken(await getResponse.Content.ReadAsStringAsync());
+
+    // Try to delete it (IDOR attack simulation)
+    var request = new HttpRequestMessage(HttpMethod.Post, $"/?handler=Delete&id={otherUserMonitor.Id}");
+    request.Headers.Add("RequestVerificationToken", token);
+    await _client.SendAsync(request);
+
+    // Verify the monitor STILL exists in the database
+    using var scope = _factory.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var exists = await db.UrlMonitors.IgnoreQueryFilters().AnyAsync(m => m.Id == otherUserMonitor.Id);
+
+    exists.Should().BeTrue("because a user cannot delete a monitor they do not own");
   }
 }
