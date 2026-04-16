@@ -27,7 +27,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../Web\UrlPulse.csproj" />
+    <ProjectReference Include="..\UrlPulse.Core\UrlPulse.Core.csproj" />
+    <ProjectReference Include="..\UrlPulse.Infrastructure\UrlPulse.Infrastructure.csproj" />
+    
+    <ProjectReference Include="..\Web\UrlPulse.csproj" />
     <ProjectReference Include="..\UrlPulse.Worker\UrlPulse.Worker.csproj" />
   </ItemGroup>
 

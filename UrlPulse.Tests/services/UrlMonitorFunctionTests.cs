@@ -22,6 +22,11 @@ public class UrlMonitorFunctionTests
     var services = new ServiceCollection();
     var dbName = Guid.NewGuid().ToString();
 
+    // Mock the user service to provide a consistent UserId for testing
+    var mockUserService = new Mock<ICurrentUserService>();
+    mockUserService.Setup(c => c.UserId).Returns("system-worker");
+    services.AddSingleton(mockUserService.Object);
+
     services.AddDbContext<ApplicationDbContext>(options =>
         options.UseInMemoryDatabase(dbName));
 

@@ -37,6 +37,7 @@ public class IndexModelTests : IDisposable
         .Options;
 
     _currentUserServiceMock = new Mock<ICurrentUserService>();
+    _currentUserServiceMock.Setup(c => c.UserId).Returns("test-user-123");
     _context = new ApplicationDbContext(options, _currentUserServiceMock.Object);
     _urlCheckerMock = new Mock<IUrlChecker>(MockBehavior.Strict);
     _sut = new IndexModel(_context, _urlCheckerMock.Object);
