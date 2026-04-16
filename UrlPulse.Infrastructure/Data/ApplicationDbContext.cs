@@ -19,6 +19,9 @@ public class ApplicationDbContext(
     // Automatically filter out other users' data
     modelBuilder.Entity<UrlMonitor>().HasQueryFilter(m =>
         m.OwnerId == _currentUserService.UserId);
+
+    modelBuilder.Entity<LatencyHistory>()
+        .HasQueryFilter(h => h.UrlMonitor.OwnerId == _currentUserService.UserId);
   }
 
   public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
