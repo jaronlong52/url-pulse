@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UrlPulse.Core.Models;
-using UrlPulse.Core.Interfaces;
 
-namespace UrlPulse.Core.Data;
+namespace UrlPulse.Infrastructure.Data;
 
 public class ApplicationDbContext(
     DbContextOptions<ApplicationDbContext> options,

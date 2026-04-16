@@ -11,7 +11,7 @@ using Moq;
 using System.Net;
 using System.Text.RegularExpressions;
 using FluentAssertions;
-using UrlPulse.Core.Data;
+using UrlPulse.Infrastructure.Data;
 using UrlPulse.Core.Models;
 using UrlPulse.Core.Services;
 using UrlPulse.Core.Interfaces;

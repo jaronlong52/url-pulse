@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
-using UrlPulse.Core.Data;
-using UrlPulse.Core.Services;
 using UrlPulse.Core.Interfaces;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
+using UrlPulse.Infrastructure.Data;
+using UrlPulse.Infrastructure.Services;
+using UrlPulse.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

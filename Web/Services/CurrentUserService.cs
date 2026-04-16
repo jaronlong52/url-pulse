@@ -1,5 +1,7 @@
 using System.Security.Claims;
 
+namespace UrlPulse.Services;
+
 public class CurrentUserService(IHttpContextAccessor httpContextAccessor) : ICurrentUserService
 {
   private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using UrlPulse.Core.Data;
+using UrlPulse.Infrastructure.Data;
 using UrlPulse.Core.Models;
 using UrlPulse.Core.Services;
 using UrlPulse.Core.Interfaces;

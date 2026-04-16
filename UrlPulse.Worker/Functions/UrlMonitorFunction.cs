@@ -1,7 +1,7 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
-using UrlPulse.Core.Data;
+using UrlPulse.Infrastructure.Data;
 using UrlPulse.Core.Interfaces;
 using UrlPulse.Core.Models;
 
@@ -32,7 +32,7 @@ public class UrlMonitorFunction(
 
     // Get active monitors
     var monitors = await _context.UrlMonitors
-        .ignoreQueryFilters()
+        .IgnoreQueryFilters()
         .Where(m => m.IsActive && !m.IsPaused)
         .Include(m => m.History
             .Where(h => h.Region == checkRegion)

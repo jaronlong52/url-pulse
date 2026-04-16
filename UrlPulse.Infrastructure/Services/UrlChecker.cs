@@ -1,16 +1,12 @@
 using System.Diagnostics;
 using UrlPulse.Core.Interfaces;
+using UrlPulse.Core.Services;
 
-namespace UrlPulse.Core.Services;
+namespace UrlPulse.Infrastructure.Services;
 
-public class UrlChecker : IUrlChecker
+public class UrlChecker(HttpClient httpClient) : IUrlChecker
 {
-  private readonly HttpClient _httpClient;
-
-  public UrlChecker(HttpClient httpClient)
-  {
-    _httpClient = httpClient;
-  }
+  private readonly HttpClient _httpClient = httpClient;
 
   public async Task<UrlCheckResult> CheckUrlAsync(string url, int timeoutMs)
   {

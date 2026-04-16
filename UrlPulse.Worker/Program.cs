@@ -3,10 +3,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration; // Required for GetConnectionString
 using Microsoft.EntityFrameworkCore;
-using UrlPulse.Core.Data;
 using UrlPulse.Core.Interfaces;
-using UrlPulse.Core.Services;
 using UrlPulse.Worker.Services;
+using UrlPulse.Infrastructure.Services;
+using UrlPulse.Infrastructure.Data;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWebApplication()

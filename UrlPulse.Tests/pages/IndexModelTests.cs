@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using UrlPulse.Pages;
-using UrlPulse.Core.Data;
+using UrlPulse.Infrastructure.Data;
 using UrlPulse.Core.Models;
 using UrlPulse.Core.Services;
 using UrlPulse.Core.Interfaces;
@@ -27,6 +27,7 @@ public class IndexModelTests : IDisposable
 
   private readonly ApplicationDbContext _context;
   private readonly Mock<IUrlChecker> _urlCheckerMock;
+  private readonly Mock<ICurrentUserService> _currentUserServiceMock;
   private readonly IndexModel _sut;
 
   public IndexModelTests()
@@ -35,7 +36,8 @@ public class IndexModelTests : IDisposable
         .UseInMemoryDatabase(Guid.NewGuid().ToString()) // isolated per test
         .Options;
 
-    _context = new ApplicationDbContext(options);
+    _currentUserServiceMock = new Mock<ICurrentUserService>();
+    _context = new ApplicationDbContext(options, _currentUserServiceMock.Object);
     _urlCheckerMock = new Mock<IUrlChecker>(MockBehavior.Strict);
     _sut = new IndexModel(_context, _urlCheckerMock.Object);
 
