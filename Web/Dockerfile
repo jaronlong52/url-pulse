@@ -5,6 +5,7 @@ WORKDIR /src
 # Copy only the project file first (better layer caching)
 COPY ["Web/UrlPulse.csproj", "Web/"]
 COPY ["UrlPulse.Core/UrlPulse.Core.csproj", "UrlPulse.Core/"]
+COPY ["UrlPulse.Infrastructure/UrlPulse.Infrastructure.csproj", "UrlPulse.Infrastructure/"]
 
 # Restore dependencies
 RUN dotnet restore "Web/UrlPulse.csproj"
@@ -12,6 +13,7 @@ RUN dotnet restore "Web/UrlPulse.csproj"
 # Copy the rest of the source code
 COPY Web/ Web/
 COPY UrlPulse.Core/ UrlPulse.Core/
+COPY UrlPulse.Infrastructure/ UrlPulse.Infrastructure/
 
 # Publish the application
 WORKDIR "/src/Web"
