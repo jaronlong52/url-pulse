@@ -11,6 +11,8 @@ using UrlPulse.Worker.Functions;
 
 public class UrlMonitorFunctionTests
 {
+  private const string TestOwnerId = "system-worker";
+
   // -------------------------------------------------------------------------
   // Test infrastructure
   // -------------------------------------------------------------------------
@@ -79,6 +81,7 @@ public class UrlMonitorFunctionTests
     {
       context.UrlMonitors.Add(new UrlMonitor
       {
+        OwnerId = TestOwnerId,
         Url = "https://example.com",
         IsActive = true,
         IsPaused = false,
@@ -109,6 +112,7 @@ public class UrlMonitorFunctionTests
     {
       var monitor = new UrlMonitor
       {
+        OwnerId = TestOwnerId,
         Url = "https://example.com",
         IsActive = true,
         CheckIntervalMinutes = 60
@@ -137,6 +141,7 @@ public class UrlMonitorFunctionTests
     {
       context.UrlMonitors.Add(new UrlMonitor
       {
+        OwnerId = TestOwnerId,
         Url = "https://paused.com",
         IsActive = true,
         IsPaused = true,
@@ -164,6 +169,7 @@ public class UrlMonitorFunctionTests
     {
       context.UrlMonitors.Add(new UrlMonitor
       {
+        OwnerId = TestOwnerId,
         Url = "https://down.com",
         IsActive = true,
         CheckIntervalMinutes = 1
