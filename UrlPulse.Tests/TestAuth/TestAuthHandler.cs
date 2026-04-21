@@ -6,25 +6,20 @@ using System.Text.Encodings.Web;
 
 namespace UrlPulse.Tests.TestAuth;
 
-public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+public class TestAuthHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options,
+    ILoggerFactory logger,
+    UrlEncoder encoder) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
   public const string SchemeName = "TestScheme";
-
-  public TestAuthHandler(
-      IOptionsMonitor<AuthenticationSchemeOptions> options,
-      ILoggerFactory logger,
-      UrlEncoder encoder)
-      : base(options, logger, encoder)
-  {
-  }
 
   protected override Task<AuthenticateResult> HandleAuthenticateAsync()
   {
     // You can customize claims here (roles, name, etc.)
     var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.Name, "TestUser"),
-            new Claim(ClaimTypes.NameIdentifier, "test-user-id"),
+            new(ClaimTypes.Name, "TestUser"),
+            new(ClaimTypes.NameIdentifier, "test-user-id"),
             // Add roles if your app uses them later: new Claim(ClaimTypes.Role, "Admin")
         };
 

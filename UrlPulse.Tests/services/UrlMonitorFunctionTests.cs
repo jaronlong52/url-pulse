@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using UrlPulse.Core.Data;
+using UrlPulse.Infrastructure.Data;
 using UrlPulse.Core.Models;
 using UrlPulse.Core.Services;
 using UrlPulse.Core.Interfaces;
@@ -11,6 +11,8 @@ using UrlPulse.Worker.Functions;
 
 public class UrlMonitorFunctionTests
 {
+  private const string TestOwnerId = "system-worker";
+
   // -------------------------------------------------------------------------
   // Test infrastructure
   // -------------------------------------------------------------------------
@@ -21,6 +23,11 @@ public class UrlMonitorFunctionTests
   {
     var services = new ServiceCollection();
     var dbName = Guid.NewGuid().ToString();
+
+    // Mock the user service to provide a consistent UserId for testing
+    var mockUserService = new Mock<ICurrentUserService>();
+    mockUserService.Setup(c => c.UserId).Returns("system-worker");
+    services.AddSingleton(mockUserService.Object);
 
     services.AddDbContext<ApplicationDbContext>(options =>
         options.UseInMemoryDatabase(dbName));
@@ -74,6 +81,7 @@ public class UrlMonitorFunctionTests
     {
       context.UrlMonitors.Add(new UrlMonitor
       {
+        OwnerId = TestOwnerId,
         Url = "https://example.com",
         IsActive = true,
         IsPaused = false,
@@ -104,6 +112,7 @@ public class UrlMonitorFunctionTests
     {
       var monitor = new UrlMonitor
       {
+        OwnerId = TestOwnerId,
         Url = "https://example.com",
         IsActive = true,
         CheckIntervalMinutes = 60
@@ -132,6 +141,7 @@ public class UrlMonitorFunctionTests
     {
       context.UrlMonitors.Add(new UrlMonitor
       {
+        OwnerId = TestOwnerId,
         Url = "https://paused.com",
         IsActive = true,
         IsPaused = true,
@@ -159,6 +169,7 @@ public class UrlMonitorFunctionTests
     {
       context.UrlMonitors.Add(new UrlMonitor
       {
+        OwnerId = TestOwnerId,
         Url = "https://down.com",
         IsActive = true,
         CheckIntervalMinutes = 1

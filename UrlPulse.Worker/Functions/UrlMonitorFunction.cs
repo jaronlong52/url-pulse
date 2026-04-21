@@ -1,27 +1,20 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
-using UrlPulse.Core.Data;
+using UrlPulse.Infrastructure.Data;
 using UrlPulse.Core.Interfaces;
 using UrlPulse.Core.Models;
 
 namespace UrlPulse.Worker.Functions;
 
-public class UrlMonitorFunction
+public class UrlMonitorFunction(
+    ApplicationDbContext context,
+    IUrlChecker checker,
+    ILogger<UrlMonitorFunction> logger)
 {
-  private readonly ApplicationDbContext _context;
-  private readonly IUrlChecker _checker;
-  private readonly ILogger<UrlMonitorFunction> _logger;
-
-  public UrlMonitorFunction(
-      ApplicationDbContext context,
-      IUrlChecker checker,
-      ILogger<UrlMonitorFunction> logger)
-  {
-    _context = context;
-    _checker = checker;
-    _logger = logger;
-  }
+  private readonly ApplicationDbContext _context = context;
+  private readonly IUrlChecker _checker = checker;
+  private readonly ILogger<UrlMonitorFunction> _logger = logger;
 
   // This runs every 1 minute. 
   // CRON format: [Seconds] [Minutes] [Hours] [Day] [Month] [Day_of_week]
@@ -39,6 +32,7 @@ public class UrlMonitorFunction
 
     // Get active monitors
     var monitors = await _context.UrlMonitors
+        .IgnoreQueryFilters()
         .Where(m => m.IsActive && !m.IsPaused)
         .Include(m => m.History
             .Where(h => h.Region == checkRegion)

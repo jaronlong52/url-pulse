@@ -2,6 +2,7 @@ using System.Net;
 using FluentAssertions;
 using Moq;
 using Moq.Protected;
+using UrlPulse.Infrastructure.Services;
 using UrlPulse.Core.Services;
 
 namespace UrlPulse.Tests.Services;

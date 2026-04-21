@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UrlPulse.Core", "UrlPulse.C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UrlPulse.Worker", "UrlPulse.Worker\UrlPulse.Worker.csproj", "{9ECB1D7E-02D2-4BFC-9CEC-72EC4FF894F0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UrlPulse.Infrastructure", "UrlPulse.Infrastructure\UrlPulse.Infrastructure.csproj", "{9CC8872D-C11E-441B-9197-F90703BF161C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +73,18 @@ Global
 		{9ECB1D7E-02D2-4BFC-9CEC-72EC4FF894F0}.Release|x64.Build.0 = Release|Any CPU
 		{9ECB1D7E-02D2-4BFC-9CEC-72EC4FF894F0}.Release|x86.ActiveCfg = Release|Any CPU
 		{9ECB1D7E-02D2-4BFC-9CEC-72EC4FF894F0}.Release|x86.Build.0 = Release|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Debug|x64.Build.0 = Debug|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Debug|x86.Build.0 = Debug|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Release|x64.ActiveCfg = Release|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Release|x64.Build.0 = Release|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Release|x86.ActiveCfg = Release|Any CPU
+		{9CC8872D-C11E-441B-9197-F90703BF161C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

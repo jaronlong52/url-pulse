@@ -5,15 +5,15 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using UrlPulse.Core.Data;
+using UrlPulse.Infrastructure.Data;
 
 #nullable disable
 
 namespace UrlPulse.Core.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260408181034_AddRegionToLatencyChecks")]
-    partial class AddRegionToLatencyChecks
+    [Migration("20260325152329_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -42,10 +42,6 @@ namespace UrlPulse.Core.Migrations
 
                     b.Property<int>("LatencyMs")
                         .HasColumnType("integer");
-
-                    b.Property<string>("Region")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<int>("StatusCode")
                         .HasColumnType("integer");

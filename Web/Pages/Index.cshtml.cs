@@ -2,22 +2,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
-using UrlPulse.Core.Data;
+using UrlPulse.Infrastructure.Data;
 using UrlPulse.Core.Models;
 using UrlPulse.Core.Interfaces;
 
 namespace UrlPulse.Pages;
 
-public class IndexModel : PageModel
+public class IndexModel(ApplicationDbContext context, IUrlChecker urlChecker) : PageModel
 {
-    private readonly ApplicationDbContext _context;
-    private readonly IUrlChecker _urlChecker;
-
-    public IndexModel(ApplicationDbContext context, IUrlChecker urlChecker)
-    {
-        _context = context;
-        _urlChecker = urlChecker;
-    }
+    private readonly ApplicationDbContext _context = context;
+    private readonly IUrlChecker _urlChecker = urlChecker;
 
     [BindProperty]
     [Required(ErrorMessage = "URL is required")]
@@ -95,7 +89,9 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostDeleteAsync(int id)
     {
-        var urlMonitor = await _context.UrlMonitors.FindAsync(id);
+        // FirstOrDefaultAsync ensures the Global Query Filter is applied
+        // If the monitor belongs to someone else, this returns null
+        var urlMonitor = await _context.UrlMonitors.FirstOrDefaultAsync(m => m.Id == id);
 
         if (urlMonitor != null)
         {
@@ -114,12 +110,13 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostSetPauseAsync(int id)
     {
-        var monitor = await _context.UrlMonitors.FindAsync(id);
+        // FirstOrDefaultAsync ensures the Global Query Filter is applied
+        // If the monitor belongs to someone else, this returns null
+        var monitor = await _context.UrlMonitors.FirstOrDefaultAsync(m => m.Id == id);
         if (monitor == null)
             return NotFound();
 
         monitor.IsPaused = !monitor.IsPaused;
-
         await _context.SaveChangesAsync();
 
         return new JsonResult(new { isPaused = monitor.IsPaused });

@@ -3,9 +3,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration; // Required for GetConnectionString
 using Microsoft.EntityFrameworkCore;
-using UrlPulse.Core.Data;
 using UrlPulse.Core.Interfaces;
-using UrlPulse.Core.Services;
+using UrlPulse.Worker.Services;
+using UrlPulse.Infrastructure.Services;
+using UrlPulse.Infrastructure.Data;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
@@ -20,13 +21,14 @@ var host = new HostBuilder()
     .ConfigureServices((context, services) =>
     {
         // Use context.Configuration to grab the string from Secrets or local.settings.json
-        // This looks for "ConnectionStrings:DefaultConnection"
         var connectionString = context.Configuration.GetConnectionString("DefaultConnection");
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString));
 
         services.AddHttpClient<IUrlChecker, UrlChecker>();
+
+        services.AddSingleton<ICurrentUserService, SystemUserService>();
     })
     .Build();
 

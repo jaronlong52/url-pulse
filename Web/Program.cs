@@ -1,12 +1,13 @@
 using Microsoft.EntityFrameworkCore;
-using UrlPulse.Core.Data;
-using UrlPulse.Core.Services;
 using UrlPulse.Core.Interfaces;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
+using UrlPulse.Infrastructure.Data;
+using UrlPulse.Infrastructure.Services;
+using UrlPulse.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,9 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
     options.Secure = CookieSecurePolicy.Always;
     options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
 });
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
