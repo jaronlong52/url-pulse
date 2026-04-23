@@ -1,0 +1,379 @@
+@page
+@model AnalyticsModel
+@{
+  ViewData["Title"] = "Analytics — URL Pulse";
+}
+
+<div class="container mt-5">
+
+  @* Header  *@
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="display-5 fw-bold text-primary">Analytics</h1>
+    <a asp-page="/Index" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Dashboard
+    </a>
+  </div>
+
+  @* Selector card  *@
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-7">
+          <label for="monitor-select" class="form-label small fw-bold">URL Monitor</label>
+          <select id="monitor-select" class="form-select">
+            <option value="">— Select a monitor to view analytics —</option>
+            @foreach (var m in Model.UrlMonitors)
+            {
+              <option value="@m.Id">
+                @m.Url@(m.IsPaused ? " (paused)" : "")
+              </option>
+            }
+          </select>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label small fw-bold">Time Range</label>
+          <div class="btn-group w-100" role="group" aria-label="Time range selector">
+            <button type="button" class="btn btn-outline-primary range-btn" data-range="1h">1h</button>
+            <button type="button" class="btn btn-outline-primary range-btn" data-range="6h">6h</button>
+            <button type="button" class="btn btn-outline-primary range-btn active" data-range="24h">24h</button>
+            <button type="button" class="btn btn-outline-primary range-btn" data-range="7d">7d</button>
+            <button type="button" class="btn btn-outline-primary range-btn" data-range="30d">30d</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @* Empty state  *@
+  <div id="empty-state" class="text-center py-5 text-muted">
+    <i class="bi bi-bar-chart-line" style="font-size: 3.5rem;"></i>
+    <p class="mt-3 mb-1 fs-5">Select a monitor to view its analytics</p>
+    <p class="small mb-0">Latency trends, regional comparisons, and uptime stats will appear here.</p>
+  </div>
+
+  @* Analytics content — hidden until a monitor is chosen  *@
+  <div id="analytics-content" style="display: none;">
+
+    @* Stats cards (populated by JS)  *@
+    <div class="row g-3 mb-4" id="stats-row"></div>
+
+    @* Latency over time  *@
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-bold text-dark">Latency Over Time</h5>
+        <p class="text-muted small mb-0 mt-1">
+          Average response time in ms per time bucket, split by check region. Use the toolbar to zoom or pan.
+        </p>
+      </div>
+      <div class="card-body">
+        <div id="latency-chart" style="min-height: 320px;"></div>
+      </div>
+    </div>
+
+    @* Regional comparison + status distribution  *@
+    <div class="row g-4 mb-5">
+      <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold text-dark">Regional Comparison</h5>
+            <p class="text-muted small mb-0 mt-1">Average and P95 latency per check region</p>
+          </div>
+          <div class="card-body">
+            <div id="region-chart" style="min-height: 280px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold text-dark">Response Status</h5>
+            <p class="text-muted small mb-0 mt-1">Distribution of HTTP response codes</p>
+          </div>
+          <div class="card-body d-flex align-items-center justify-content-center">
+            <div id="status-chart" style="width: 100%; min-height: 280px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.45.1/apexcharts.min.js"></script>
+<script>
+  // ─── State ────────────────────────────────────────────────────────────────
+  let currentMonitorId = null;
+  let currentRange = '24h';
+  let latencyChart = null;
+  let regionChart = null;
+  let statusChart = null;
+
+  // Matches the 5-region palette; extend if you add more regions
+  const REGION_COLORS = ['#0d6efd', '#20c997', '#fd7e14', '#6f42c1', '#dc3545', '#0dcaf0'];
+
+  // Colour-code each HTTP status family consistently across charts
+  const STATUS_COLORS = {
+    '2xx': '#198754',
+    '3xx': '#0d6efd',
+    '4xx': '#fd7e14',
+    '5xx': '#dc3545',
+    'Timeout': '#6c757d'
+  };
+
+  // ─── Event listeners ─────────────────────────────────────────────────────
+  document.getElementById('monitor-select').addEventListener('change', function () {
+    const id = parseInt(this.value);
+    if (isNaN(id)) { showEmptyState(); return; }
+
+    currentMonitorId = id;
+
+    // Destroy all charts so a fresh monitor starts with a clean canvas
+    destroyCharts();
+    loadAll();
+  });
+
+  document.querySelectorAll('.range-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      if (!currentMonitorId) return;
+      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentRange = this.dataset.range;
+      loadAll();
+    });
+  });
+
+  // ─── Orchestration ────────────────────────────────────────────────────────
+  async function loadAll() {
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('analytics-content').style.display = 'block';
+
+    // Render all four sections in parallel to minimise total wait time
+    await Promise.all([
+      loadStats(),
+      loadLatencyChart(),
+      loadRegionChart(),
+      loadStatusChart()
+    ]);
+  }
+
+  function destroyCharts() {
+    latencyChart?.destroy(); latencyChart = null;
+    regionChart?.destroy(); regionChart = null;
+    statusChart?.destroy(); statusChart = null;
+  }
+
+  function showEmptyState() {
+    currentMonitorId = null;
+    destroyCharts();
+    document.getElementById('analytics-content').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('stats-row').innerHTML = '';
+  }
+
+  // ─── Stats cards ──────────────────────────────────────────────────────────
+  async function loadStats() {
+    const res = await fetch(`?handler=Stats&monitorId=${currentMonitorId}&range=${currentRange}`);
+    const data = await res.json();
+    const row = document.getElementById('stats-row');
+
+    if (!data) {
+      row.innerHTML = '<div class="col"><p class="text-muted small">No data for this period.</p></div>';
+      return;
+    }
+
+    const uptimeClass = data.uptimePercent >= 99 ? 'text-success'
+      : data.uptimePercent >= 95 ? 'text-warning'
+        : 'text-danger';
+
+    row.innerHTML = [
+      statCard('Uptime', data.uptimePercent.toFixed(2) + '%', 'bi-shield-check', uptimeClass),
+      statCard('Avg Latency', data.avgLatency + ' ms', 'bi-speedometer2', 'text-primary'),
+      statCard('P50 Latency', data.p50 + ' ms', 'bi-activity', 'text-info'),
+      statCard('P95 Latency', data.p95 + ' ms', 'bi-activity', 'text-warning'),
+      statCard('P99 Latency', data.p99 + ' ms', 'bi-activity', 'text-danger'),
+      statCard('Total Checks', data.totalChecks.toLocaleString(), 'bi-clipboard-data', 'text-secondary'),
+    ].join('');
+  }
+
+  function statCard(label, value, icon, colorClass) {
+    return `
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="card shadow-sm border-0 bg-light h-100">
+                    <div class="card-body py-3 px-3">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="bi ${icon} ${colorClass}"></i>
+                            <span class="text-muted small">${label}</span>
+                        </div>
+                        <p class="fw-bold fs-5 mb-0 ${colorClass}">${value}</p>
+                    </div>
+                </div>
+            </div>`;
+  }
+
+  // ─── Latency over time ────────────────────────────────────────────────────
+  async function loadLatencyChart() {
+    const res = await fetch(`?handler=LatencyData&monitorId=${currentMonitorId}&range=${currentRange}`);
+    const series = await res.json();
+
+    // Convert ISO timestamps → Unix-ms; ApexCharts datetime axis expects numbers
+    const apexSeries = series.map((s, i) => ({
+      name: s.name || `Region ${i + 1}`,
+      color: REGION_COLORS[i % REGION_COLORS.length],
+      data: s.data.map(d => ({
+        x: new Date(d.x).getTime(),
+        y: d.y,
+        // Store error count for tooltip display
+        errors: d.errors
+      }))
+    }));
+
+    const options = {
+      series: apexSeries,
+      chart: {
+        type: 'line',
+        height: 320,
+        animations: { enabled: false },    // improves perf on large datasets
+        toolbar: {
+          tools: { zoom: true, zoomin: true, zoomout: true, pan: true, reset: true, download: false }
+        }
+      },
+      stroke: { curve: 'smooth', width: 2 },
+      markers: { size: 0, hover: { size: 4 } },
+      xaxis: {
+        type: 'datetime',
+        labels: { datetimeUTC: false }     // render in the user's local timezone
+      },
+      yaxis: {
+        title: { text: 'Latency (ms)' },
+        min: 0,
+        labels: { formatter: v => Math.round(v) + ' ms' }
+      },
+      tooltip: {
+        shared: true,
+        intersect: false,
+        x: { format: 'MMM dd HH:mm' },
+        y: {
+          formatter: (val, { seriesIndex, dataPointIndex, w }) => {
+            const point = w.config.series[seriesIndex]?.data[dataPointIndex];
+            const errBadge = point?.errors > 0
+              ? ` <span class="badge bg-danger ms-1">${point.errors} err</span>`
+              : '';
+            return val + ' ms' + errBadge;
+          }
+        }
+      },
+      legend: { position: 'top', horizontalAlign: 'right' },
+      grid: { borderColor: '#f1f1f1' },
+      noData: { text: 'No data for this period' }
+    };
+
+    if (latencyChart) {
+      latencyChart.updateOptions(options, true, false);
+    } else {
+      latencyChart = new ApexCharts(document.getElementById('latency-chart'), options);
+      latencyChart.render();
+    }
+  }
+
+  // ─── Regional comparison ──────────────────────────────────────────────────
+  async function loadRegionChart() {
+    const res = await fetch(`?handler=RegionSummary&monitorId=${currentMonitorId}&range=${currentRange}`);
+    const data = await res.json();
+
+    const options = {
+      series: [
+        { name: 'Avg Latency', data: data.map(d => d.avgLatency) },
+        { name: 'P95 Latency', data: data.map(d => d.p95Latency) }
+      ],
+      chart: {
+        type: 'bar',
+        height: 280,
+        toolbar: { show: false },
+        animations: { enabled: false }
+      },
+      plotOptions: {
+        bar: { horizontal: true, barHeight: '55%', borderRadius: 3 }
+      },
+      colors: ['#0d6efd', '#fd7e14'],
+      xaxis: {
+        categories: data.map(d => d.region),
+        labels: { formatter: v => v + ' ms' },
+        title: { text: 'Latency (ms)' }
+      },
+      tooltip: {
+        y: {
+          formatter: (val, { seriesIndex, dataPointIndex }) => {
+            const region = data[dataPointIndex];
+            const extra = seriesIndex === 0
+              ? ` — ${region.successPct}% success over ${region.totalChecks.toLocaleString()} checks`
+              : '';
+            return val + ' ms' + extra;
+          }
+        }
+      },
+      legend: { position: 'top' },
+      grid: { borderColor: '#f1f1f1' },
+      noData: { text: 'No data for this period' }
+    };
+
+    if (regionChart) {
+      regionChart.updateOptions(options, true, false);
+    } else {
+      regionChart = new ApexCharts(document.getElementById('region-chart'), options);
+      regionChart.render();
+    }
+  }
+
+  // ─── Status distribution ──────────────────────────────────────────────────
+  async function loadStatusChart() {
+    const res = await fetch(`?handler=StatusDistribution&monitorId=${currentMonitorId}&range=${currentRange}`);
+    const data = await res.json();
+
+    const labels = data.map(d => d.label);
+    const counts = data.map(d => d.count);
+    const colors = labels.map(l => STATUS_COLORS[l] ?? '#adb5bd');
+
+    const options = {
+      series: counts,
+      chart: {
+        type: 'donut',
+        height: 280,
+        toolbar: { show: false }
+      },
+      labels: labels,
+      colors: colors,
+      legend: { position: 'bottom' },
+      tooltip: {
+        y: {
+          formatter: (val, { w }) => {
+            const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+            return `${val.toLocaleString()} checks (${(val / total * 100).toFixed(1)}%)`;
+          }
+        }
+      },
+      plotOptions: {
+        pie: {
+          donut: {
+            labels: {
+              show: true,
+              total: {
+                show: true,
+                label: 'Total',
+                formatter: w =>
+                  w.globals.seriesTotals.reduce((a, b) => a + b, 0).toLocaleString()
+              }
+            }
+          }
+        }
+      },
+      noData: { text: 'No data for this period' }
+    };
+
+    if (statusChart) {
+      statusChart.updateOptions(options, true, false);
+    } else {
+      statusChart = new ApexCharts(document.getElementById('status-chart'), options);
+      statusChart.render();
+    }
+  }
+</script>
