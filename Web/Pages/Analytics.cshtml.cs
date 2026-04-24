@@ -48,11 +48,12 @@ public class AnalyticsModel(ApplicationDbContext context) : PageModel
         .ToListAsync();
 
     var series = raw
-        .GroupBy(h => h.Region)
-        .Select(g => new
-        {
-          name = string.IsNullOrWhiteSpace(g.Key) ? "Unknown" : g.Key,
-          data = g
+    .Where(h => !string.IsNullOrWhiteSpace(h.Region))
+    .GroupBy(h => h.Region)
+    .Select(g => new
+    {
+      name = g.Key,
+      data = g
                 .GroupBy(h => TruncateToBucket(h.CheckedAt, bucket))
                 .OrderBy(b => b.Key)
                 .Select(b => new
@@ -64,7 +65,7 @@ public class AnalyticsModel(ApplicationDbContext context) : PageModel
                   errors = b.Count(h => h.StatusCode == 0 || h.StatusCode >= 400)
                 })
                 .ToList()
-        })
+    })
         .ToList();
 
     return new JsonResult(series);
@@ -85,13 +86,14 @@ public class AnalyticsModel(ApplicationDbContext context) : PageModel
         .ToListAsync();
 
     var summary = raw
+        .Where(h => !string.IsNullOrWhiteSpace(h.Region))
         .GroupBy(h => h.Region)
         .Select(g =>
         {
           var sorted = g.Select(h => h.LatencyMs).OrderBy(x => x).ToList();
           return new
           {
-            region = string.IsNullOrWhiteSpace(g.Key) ? "Unknown" : g.Key,
+            region = g.Key,
             avgLatency = (int)sorted.Average(),
             p95Latency = Percentile(sorted, 0.95),
             successPct = Math.Round(
