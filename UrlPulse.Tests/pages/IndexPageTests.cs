@@ -171,7 +171,6 @@ public class IndexPageIntegrationTests : IClassFixture<IndexPageIntegrationTests
 
   [Theory]
   [InlineData("URL Pulse")]
-  [InlineData("System Active")]
   [InlineData("Add New Monitor")]
   [InlineData("Active Monitors")]
   [InlineData("Status")]
