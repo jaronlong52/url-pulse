@@ -82,6 +82,7 @@ app.UseAuthorization();
 
 app.MapStaticAssets();
 app.MapRazorPages().WithStaticAssets();
+app.MapControllers();
 
 app.Run();
 
