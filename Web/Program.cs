@@ -9,19 +9,25 @@ using UrlPulse.Infrastructure.Data;
 using UrlPulse.Infrastructure.Services;
 using UrlPulse.Services;
 
+// Initialize application builder
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Authentication
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
 
+// Require users to be authenticated by default
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build());
 
+// Add Razor Pages and Identity UI components
 builder.Services.AddRazorPages()
     .AddMicrosoftIdentityUI();
 
+// Configure Security & Infrastructure
+// Allow app to read original client IPs/schemes when running behind a reverse proxy or load balancer
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
@@ -32,6 +38,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+// Enforce strict security policies for cookies
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
     options.MinimumSameSitePolicy = SameSiteMode.None;
@@ -39,9 +46,11 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
     options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
 });
 
+// Register Dependency Injection (DI) Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
+// Configure database context (PostgreSQL for regular use, In-Memory for testing)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (builder.Environment.EnvironmentName != "Testing")
@@ -54,14 +63,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
 });
 
+// Register HTTP clients for making external API calls
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<IUrlChecker, UrlChecker>();
 
+// Build Application
 var app = builder.Build();
 
+// Configure HTTP Request Pipeline (Middleware)
 app.UseForwardedHeaders();
 app.UseCookiePolicy();
 
+// Automatically apply pending database migrations on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -69,6 +82,7 @@ using (var scope = app.Services.CreateScope())
         db.Database.Migrate();
 }
 
+// Configure error handling for production environments
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -77,15 +91,20 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
+
+// Enable auth middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Map routing endpoints
 app.MapStaticAssets();
 app.MapRazorPages().WithStaticAssets();
 app.MapControllers();
 
+// Start application
 app.Run();
 
+// Expose Program class so Integration Tests (WebApplicationFactory) can access it
 namespace UrlPulse.Web
 {
     public partial class Program { }
